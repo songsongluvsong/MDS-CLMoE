@@ -1,0 +1,2382 @@
+
+===== PAGE 1 =====
+Contents lists  available  at  ScienceDirect
+Applied Soft  Computing
+journal  homepage:  www.elsevier.com/locate/asoc
+Towards curriculum  learning  of  multi-document  summarization  using  
+difficulty-aware mixture-of-experts
+Ming Zhang  
+a 
+�, Lu  Cheng  
+b 
+�, Wenbo  Guan  
+c, d 
+�, Jun  Zhou  
+e 
+, Meilin  Wan  
+a,* 
+�
+a 
+School of  Integrated  Circuits,  Hubei  University,  Wuhan,  China  
+b 
+School of  Electronic  and  Computer  Engineering,  Shenzhen  Graduate  School,  Peking  University,  Shenzhen,  China  
+c 
+China Southern  Power  Grid  Artificial  Intelligence  Technology  Co.,  Ltd,  Guangzhou,  China  
+d 
+China Southern  Power  Grid  Digital  Grid  Research  Institute  Co.,  Ltd,  Guangzhou,  China  
+e 
+Key Laboratory  of  Speech  Acoustics  and  Content  Understanding,  Institute  of  Acoustics,  Chinese  Academy  of  Sciences,  Beijing,  China
+H I G H L I G H T S
+• Our work  demonstrates  the  efficacy  of  curriculum  learning  in  multi-document  summarization.
+• Our work  highlights  the  strength  of  mixture-of-experts  in  multi-document  summarization.
+• CLMoE: a  novel  framework  that  incorporates  Curriculum  Learning  into  Mixture-of-Experts.
+• Evaluation on  two  MDS  benchmark  datasets  demonstrates  competitive  performance  of  CLMoE.
+A R T I C L E I N F O
+Keywords:
+Multi-document summarization  
+Text summarization  
+Curriculum learning  
+Mixture-of-experts 
+Natural language  processing
+A B S T R A C T
+With the  advent  of  information  explosion,  automatic  multi-document  summarization  has  attracted  widespread  at -
+tention from  the  natural  language  pro cessing. Multi-document  summarization  (MDS)  poses  challenges  with  larger  
+search and  problem  spaces,  since  lengthy  inputs  often  contain  varying  degrees  of  redundancy  and  contradiction.  
+To tackle  these  challenges,  we  propose  a  novel  difficulty-aware  framework  that  enhances  MDS  by  integrating  
+curriculum learning  paradigms  into  mixture-of-experts  architectures.  During  the  curriculum  learning  stage,  a  
+multi-document difficulty  metric  works  in  tandem  with  the  curriculum  scheduler  to  train  experts  specialized  in  
+distinct problem  subspaces.  We  first  employ  the  proposed  multi-document  difficulty  metric  to  partition  the  MDS  
+dataset into  subsets  with  distinct  levels  of  difficulty.  Then,  we  adopt  the  difficulty-aware  curriculum  arrangement  
+to train  specialized  expert  models  on  different  subsets.  During  the  mixture-of-experts  stage,  we  utilize  a  difficulty -
+aware mixture-of-experts  s tructure to  combine  different  models  for  improving  multi-document  summarization.  
+Extensive experimental  results  on  two  MDS  datasets  indicate  that  the  proposed  method  achieves  state-of-the-art  
+performance among  length-constrained  methods  and  delivers  competitive  results  compared  to  other  strong  base -
+lines with  greater  parameters . These  results  demonstrate  the  effectiveness  of  combining  curriculum  learning  and  
+mixture-of-experts, implying  a  promising  direction  for  multi-document  summarization.
+1. Introduction
+With the  exponential  growth  of  textual  information  on  the  Internet,  
+it is  becoming  increasingly  impossible  for  people  to  read  and  compre -
+hend all  of  it  in  a  short  time,  exacerbating  the  problem  of  information  
+overload [ 1]. In  the  context  of  information  explosion,  automatic  multi -
+document summarization  technology  arose  as  needed.  Specifically,
+it helps  individuals  find  the  information  they  need  more  efficiently  from  
+enormous amounts  of  text  by  providing  a  succinct  summary  of  multiple  
+related documents.  Due  to  its  wide  range  of  application  scenarios,  au -
+tomatic multi-document  summarization  has  drawn  significant  attention  
+from researchers  in  recent  years,  including  scientific  summarization  [ 2], 
+Wikipedia generation  [ 3], and  medical  abstraction  [ 4].
+* 
+Corresponding author.
+Email addresses:  zhangming@hubu.edu.cn (M. Zhang),  chenglu2023@stu.pku.edu.cn (L. Cheng),  guanwenbo22@mails.ucas.ac.cn (W. Guan),  
+zhoujun@hccl.ioa.ac.cn (J. Zhou),  wanml@hubu.edu.cn (M. Wan).
+https://doi.org/10.1016/j.asoc.2025.114088 
+Received 24  November  2024;  Received  in  revised  form  2  October  2025;  Accepted  7  October  2025
+Applied Soft Computing Journal 186 (2026) 114088 
+Available online 31 October 2025 
+1568-4946/© 2025 Elsevier B.V. All rights are reserved, including those for text and data mining, AI training, and similar technologies. 
+
+===== PAGE 2 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+Multi-document summarization  (MDS)  aims  to  create  brief  sum -
+maries that  contain  essential  and  unique  details  from  a  collection  of  
+topic-related documents  [ 5]. Typically,  MDS  can  be  divided  into  two  
+types: abstractive  MDS  and  extractive  MDS.  More  specifically,  extrac -
+tive MDS  aims  to  extract  the  best  phrases  or  sentences  from  source  
+documents to  cover  salient  information,  whereas  abstractive  MDS  fa -
+cilitates the  creation  of  summaries  by  paraphrasing  the  main  ideas  of  
+source materials.  With  the  advent  of  large-scale  datasets  and  the  evo -
+lution of  powerful  pre-trained  language  models  (PLMs),  there  has  been  
+substantial progress  in  abstractive  MDS  in  recent  years  [ 6]. Since  the  
+paradigm of  efficient  fine-tuning  based  on  pre-trained  language  models  
+has become  the  dominant  style  [ 7], our  work  falls  into  abstractive  MDS.
+Unlike single-document  summarization  (SDS)  which  simply  sum -
+marizes the  main  content  in  one  document,  MDS  is  inherently  more  
+complex [ 8]. We  observe  the  following  two  main  challenges:  (1)  Larger  
+search space.  Typically,  MDS  has  longer  input  but  fewer  training  sam -
+ples, resulting  in  a  larger  search  space  [ 9]. For  instance,  the  popular  SDS  
+dataset CNN/DailyMail  [ 10] has  287  K  training  samples  with  an  average  
+of 687  words,  while  the  benchmark  MDS  dataset  Multi-News  [ 11] has  
+45 K  training  samples  with  an  average  of  1789  words.  (2)  Larger  prob -
+lem space.  Obviously,  collections  of  documents  from  multiple  sources,  
+times, and  perspectives  exhibit  varying  degrees  of  redundancy  and  con -
+tradiction. Due  to  the  complexity  of  multi-document  inputs  varies,  MDS  
+has a  larger  problem  space  [ 12].
+Recent years  have  seen  a  large  number  of  dedicated  attempts  to  over -
+come the  aforementioned  MDS  issues  [ 13]. For  larger  search  spaces,  
+previous studies  have  either  extended  the  maximum  encoding  length  
+by refining  the  standard  attention  mechanism  of  Transformer  [ 14] or  
+extracted high-quality  meta-documents  from  raw  input  using  an  extract -
+then-summarize pipeline  [ 15,16]. However,  the  former  technique  often  
+bears greater  computational  and  time  overhead,  whereas  the  latter  
+method is  hampered  by  inescapable  cascading  losses.  Notably,  these  
+methods are  confined  to  lengthy  multi-document  inputs  but  neglect  ef -
+ficient training  using  fewer  instances.  For  larger  problem  spaces,  prior  
+work [ 17] has  attempted  to  discard  easier  and  harder  examples  to  help  
+the model  converge  quickly.  Obviously,  this  arbitrary  approach  may  
+induce model  degradation  due  to  its  lower  generalization  capabilities.
+Recent studies  [ 18,19] have  shown  that  curriculum  learning  plays  a  
+positive role  in  improving  model  training  efficiency  and  generalization  
+ability by  gradually  introducing  more  challenging  samples.  Since  MDS  
+involves processing  multi-document  inputs  with  varying  complexity,  it  
+makes sense  to  adopt  a  curriculum  learning  paradigm  to  train  the  model  
+in a  larger  search  space.  In  addition,  the  use  of  a  mixture-of-experts  
+structure to  assign  various  experts  to  handle  distinct  subtasks  has  proven  
+to be  beneficial  for  complex  tasks  [ 20]. For  the  difficult  MDS  task,  it  
+is reasonable  to  utilize  a  mixture-of-experts  architecture  to  incorporate  
+multiple models  working  on  specific  types  of  data.
+To deal  with  the  larger  search  and  problem  spaces,  we  propose  
+a novel  CLMoE  framework  for  improving  MDS  that  incorporates  a  
+Curriculum Learning  paradigm  into  a  Mixture-of-Experts  architecture.  
+As shown  in  Fig. 1 , the corresponding  experts  are  first  trained  us -
+ing curriculum  learning,  and  then  these  experts  are  aggregated  in  a  
+difficulty-aware mixture-of-experts  architecture.  To  train  experts  spe -
+cialized in  various  problem  subspaces,  the  multi-document  difficulty  
+metrics and  the  difficulty-aware  curriculum  learning  work  in  tandem.  
+Specifically, we  employ  a  difficulty  metric  designed  for  the  multi -
+document inputs  to  partition  the  original  dataset  into  three  subsets  with  
+distinct difficulties:  subset  #Easy,  subset  #Normal,  and  subset  #Hard.  
+Then, we  use  the  proposed  difficulty-aware  curriculum  arrangement  to  
+train corresponding  experts  on  subsets  of  different  difficulties,  including  
+expert #Easy,  expert  #Normal,  and  expert  #Hard.  Lastly,  we  propose  a  
+difficulty-aware mixture-of-experts  structure  for  aggregating  all  experts,  
+which consists  of  a  gating  network  and  a  summary  selector.
+We assess  the  proposed  CLMoE  framework  implemented  with  BART  
+on two  MDS  benchmark  datasets:  Multi-News  and  DUC-2004.  Automatic  
+evaluation results  using  the  widely  used  Recall-Oriented  Understudy  for  
+Gisting Evaluation  (ROUGE)  show  that  the  proposed  approach  outper -
+forms input-constrained  methods  and  achieves  comparable  performance  
+to several  input-unrestricted  baselines.  In  particular,  we  thoroughly  ex -
+amine the  effectiveness  of  different  difficulty  metrics  and  curriculum  
+schedules. Lastly,  we  carry  out  detailed  ablation  studies  to  further  vali -
+date the  efficacy  of  removable  components,  such  as  the  curriculum  learn -
+ing paradigm  and  the  mixture-of-experts  architecture.  These  encourag -
+ing results  demonstrate  the  efficacy  of  incorporating  the  Curriculum
+Normal examples
+Hard examples
+Easy examples Expert #Easy
+Expert #Normal
+Expert #Hard
+Reverse 
+curriculum
+BabySteps 
+curriculum
+Random 
+curriculum
+Difficulty-aware
+Mixture-of-Experts
+Fig. 1.  Overview  of  the  proposed  difficulty-aware  mixture-of-experts  framework.
+Applied Soft Computing 186 (2026) 114088 
+2 
+
+===== PAGE 3 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+Learning paradigm  into  the  Mixture-of-Experts  architecture  (CLMoE),  
+suggesting this  is  a  potential  approach  for  improving  MDS.
+We outline  the  primary  contributions  of  this  manuscript  as  follows.
+• Our work  shows  the  efficacy  of  curriculum  learning  in  abstractive
+MDS. We  propose  task-specific  heuristics  difficulty  metrics  to  effec -
+tively guide  curriculum  learning  for  MDS,  including  both  semantic  
+and lexical  analysis.  Furthermore,  a  difficulty-aware  curriculum  ar -
+rangement is  proposed  to  effectively  train  models  according  to  
+subsets of  different  difficulties.
+• We further  propose  the  CLMoE  framework,  which  bridges  curriculum
+learning (CL)  paradigm  with  mixture-of-experts  (MoE)  structure  to  
+achieve difficulty-aware  routing  and  expert  specialization  for  MDS  
+tasks. The  CLMoE  framework  is  primarily  structured  around  three  
+key components:  (1)  multi-document  difficulty  metric,  (2)  difficulty -
+aware curriculum  arrangement,  and  (3)  difficulty-aware  mixture-of -
+experts.
+• Extensive experiments  on  two  MDS  benchmark  datasets,  Multi-News
+and DUC-2004,  demonstrate  that  our  approach  achieves  competi -
+tive performance  with  lower  computational  cost.  We  also  provide  an  
+in-depth analysis  to  illustrate  the  efficacy  of  CLMoE  framework  in  
+solving complex  tasks,  taking  multi-document  summarization  as  a  
+case study.
+The remainder  of  this  manuscript  is  structured  as  follows.  Sections 2  
+and 3 present the  related  work  and  background  that  are  most  relevant  
+to the  proposed  CLMoE,  including  curriculum  learning  and  mixture -
+of-experts. Section 4  elaborates on  the  details  of  our  proposed  CLMoE  
+framework for  MDS.  Then,  the  experimental  setup  and  results  are  dis -
+cussed in  Sections 5  and 6, respectively. Finally,  Section 7  concludes this  
+manuscript and  outlines  future  plans.
+2. Related  work
+This section  offers  a  brief  overview  of  related  work  closely  aligned  
+with the  proposed  CLMoE,  including  curriculum  learning  and  mixture -
+of-experts.
+2.1. Curriculum  learning
+Curriculum learning  (CL)  is  a  typical  training  paradigm  first  proposed  
+by Bengio  et  al.  [ 21] in  2009.  It  involves  efficiently  training  a  model  on  
+a succession  of  examples  in  a  carefully  planned  manner,  which  includes  
+determining the  difficulty  of  the  examples  and  arranging  the  learning  
+process [ 22]. The  way  humans  learn  by  first  understanding  basic  con -
+cepts and  then  moving  on  to  more  advanced  ones  serves  as  inspiration  
+for this.
+In the  context  of  large-scale  datasets  and  large-parameter  models,  
+CL seeks  to  train  the  model  more  efficiently  by  gradually  increasing  the  
+complexity of  samples,  which  has  been  proven  to  accelerate  model  train -
+ing and  achieve  better  local  optima  states  [ 23]. As  CL  garners  increasing  
+interest from  a  growing  number  of  researchers,  improved  algorithms  
+utilizing CL  have  been  advancing  in  recent  years  [ 19]. In  particular,  
+it has  found  extensive  application  across  various  natural  language  pro -
+cessing (NLP)  domains,  such  as  reading  comprehension  [ 24], machine  
+translation [ 25], and  question  answering  [ 26], demonstrating  superior  
+performance and  faster  convergence  speeds.  However,  there  have  been  
+only a  few  attempts  to  use  curriculum  learning  methods  for  automatic  
+text summarization.  Specifically,  Kano  et  al.  [ 27] propose  an  efficient  
+curriculum learning  method  for  training  summarization  models  from  
+noisy data.  To  effectively  summarize  mental  health  posts,  Sotudeh  et  al.  
+[28] incorporate  a  confidence-aware  curriculum  learning  approach  into  
+the summarization  framework.  In  addition,  Sun  et  al.  [ 17] consider  a  
+data selection  curriculum  for  abstractive  text  summarization  that  in -
+cludes a  margin-aware  list-wise  ranking  loss.  It  is  worth  noting  that  these  
+beneficial attempts  are  limited  to  the  SDS  task.
+To our  knowledge,  curriculum  learning  is  still  in  its  infancy  
+and has  not  been  explored  for  the  MDS  task.  Since  multi-document  
+summarization involves  processing  documents  with  varying  degrees  of
+redundancy and  contradiction,  the  data  complexity  fluctuates  greatly,  
+making it  ideal  for  curriculum  learning.  Inspired  by  the  excellent  work  
+of Hacohen  and  Weinshall  [ 29], we  apply  the  CL  paradigm  to  the  
+multi-document summarization  task  for  the  first  time.  Recently,  Kong  
+et al.  [ 30] introduced  an  adaptive  CL  framework  that  dynamically  
+adapts the  difficulty  score  to  the  current  state  of  model  during  training.  
+Similarly, SPrint  [ 31] proposed  using  adaptive  curriculum  and  mem -
+ory replay  to  achieve  self-paced  continuous  learning.  Unlike  previous  
+studies that  emphasize  dynamic  adaptation  in  general  curriculum  learn -
+ing, our  proposed  curriculum  learning  and  difficulty  scores  are  derived  
+from domain-specific  characteristics  directly  related  to  the  MDS  task.  
+Specifically, we  propose  task-specific  heuristic  difficulty  metrics  to  ad -
+dress the  unique  challenges  of  MDS,  including  contextual  coherence,  
+topic similarity,  and  lexical  analysis.  It  is  worth  emphasizing  that  the  
+proposed approach  is  not  only  intended  to  enhance  curriculum  learn -
+ing itself,  but  also  to  explore  the  integration  of  CL  paradigm  with  
+mixture-of-experts architecture.
+2.2. Mixture-of-experts
+Mixture-of-Experts (MoE)  is  a  classic  neural  network  in  the  field  of  
+machine learning,  first  proposed  by  Jacobs  et  al.  [ 32] in  1991.  Since  it  is  
+difficult for  a  model  to  be  proficient  in  all  areas,  more  complex  jobs  can  
+be done  by  combining  experts  with  diverse  skills.  Inspired  by  this,  MoE  
+first divides  the  problem  space  into  several  subspaces,  and  then  brings  
+together expert  models  that  specialize  in  each  subspace  to  form  a  more  
+powerful and  flexible  model  [ 33]. More  precisely,  it  employs  a  gating  
+network to  select  appropriate  experts  to  process  the  input  data,  and  then  
+aggregates their  predictions  into  a  final  output.
+As of  now,  the  MoE  architecture  has  garnered  widespread  atten -
+tion from  the  machine  learning  community  [ 20]. For  instance,  Eigen  
+et al.  [ 34] present  a  deep  MoE  model  made  up  of  multi-layer  routers  
+and experts  to  improve  the  capacity  of  processing  complicated  data.  
+Furthermore, Shazeer  et  al.  [ 35] propose  to  increase  training  stability  
+and reduce  computing  costs  with  a  sparse  MoE,  which  simplifies  the  
+MoE structure  by  sparse  the  gating  network  output  for  each  sample.  
+Recently, Zhao  et  al.  [ 36] propose  a  hierarchical  MoE  as  an  extension,  
+which handles  tasks  by  organizing  experts  in  a  tree-like  structure.
+Although MoE  architectures  have  proven  successful  in  a  variety  
+of NLP  scenarios,  including  recommendation  [ 37], machine  transla -
+tion [ 38], and  language  modeling  [ 39], they  have  not  yet  been  seri -
+ously considered  for  automatic  text  summarization.  Specifically,  Goyal  
+et al.  [ 40] propose  a  novel  architecture  involving  multiple  decoders  
+in a  mixture-of-experts  structure  to  obtain  more  flexible  summaries.  
+Moreover, Ravaut  et  al.  [ 41] introduce  a  multi-task  re-ranking  frame -
+work based  on  the  MoE  architecture  to  address  the  exposure  bias  of  
+abstractive summarization.  However,  these  studies  mentioned  above  are  
+limited to  single-document  summarization.
+To our  knowledge,  there  is  no  related  work  utilizing  the  MoE  archi -
+tecture to  improve  multi-document  summarization.  As  we  mentioned  
+earlier, multi-document  summarization  entails  condensing  salient  con -
+tent across  collections  of  documents  with  varying  degrees  of  redundancy  
+and contradiction.  Due  to  the  diversified  multi-document  inputs,  the  
+problem space  can  be  partitioned  into  several  subspaces  according  to  
+data complexity,  which  is  ideal  for  the  MoE  architecture.  Unlike  previ -
+ous work,  we  integrate  the  CL  paradigm  into  the  MoE  architecture  as  the  
+CLMoE framework  to  improve  multi-document  summarization.  In  par -
+ticular, this  is  the  first  attempt  to  apply  the  MoE  architecture  to  the  MDS  
+task. In  this  paper,  we  effectively  integrate  several  experts  with  vary -
+ing levels  of  difficulty  to  handle  the  problem  space  of  multi-complexity  
+in multi-document  summarization.  A  detailed  overview  of  MoE  can  be  
+found in  Fedus  et  al.  [ 42].
+3. Background
+This section  covers  the  necessary  background  to  better  understand  
+the proposed  CLMoE  framework  for  multi-document  summarization,  
+including curriculum  learning  and  mixture-of-experts.
+Applied Soft Computing 186 (2026) 114088 
+3 
+
+===== PAGE 4 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+3.1. Problem  formulation
+Our goal  is  to  produce  succinct  summaries  from  a  collection  of  topic -
+related documents  while  retaining  important  information.  Following  
+Ma et  al.  [ 43], the  problem  of  multi-document  summarization  can  be  
+formalized  
+Given a  collection  of  document  sets  D  =  { D1
+ 
+ 
+, D 
+2 
+,..., D  
+M 
+}  and  a  cor
+responding collection  of  gold  summaries  S  =  { S 
+1, S 
+2 
+,..., S  } , whereM
+  M  
+represents the  number  of  topic-related  document  sets.  In  particular,  each  
+document set  D  
+i ∈  
+ 
+Dcontains  N  source  articles  under  a  certain  topici
+D 
+i 
+= { d1
+ , d  
+2 
+,..., d  
+N 
+}  and  a  gold  summary  S i
+ 
+ 
+∈Si
+  consisting  of  K i
+ words  
+S 
+i 
+= { w 
+1 
+, w 
+2 
+,..., w  
+K 
+} .i
+ The  multi-document  summarizer  is  designed
+to generate  an  output S
+ 
+ summary  
+^i
+ =  { w^ 
+1, w^ w 
+ 2  
+,..., ^ K 
+}i
+ that  approxi
+mates the  gold  summary  S  .i
+ Therefore,  the  process  of  multi-document  
+summarization is  to  maximize  the  following  formula.
+as follows.
+-
+-
+^ 
+S 
+i = max  P (S 
+iID 
+i; 𝚯)  =  max
+K 
+iπ
+t=1
+P(St
+i ID 
+i, ^S 
+1:t-1
+i ; 𝚯)  (1)
+where P (S Ii D thei; 𝚯)  is    
+ 
+probability distribution  of  reference  summary  
+S under conditionsi
+ the           
+ 
+of document set D and the summarizeri 𝚯.
+ 
+1:particular, S  
+t -1In represents  the  t -th word  of  S i
+ and S^i
+ 
+t denotesi
+ the  
+top t - 1 words  of S^ 
+i
+ .  Lastly,  we  compare
+ 
+ the  output  summaries S^
+ with
+their matching  gold  summaries  S  to  assess  the  performance  of  the  
+summarizer 𝚯 .
+3.2. Curriculum  learning  basics
+Inspired by  the  meaningful  order  of  human  learning,  Bengio  et  al.  
+[21] introduce  the  training  paradigm  of  CL  to  sample  training  data  from  
+easy to  hard.  As  shown  in  Fig. 2 , the process  of  curriculum  learning  is  to  
+first sort  training  instances  according  to  a  pre-defined  difficulty  metric,  
+and then  take  different  curriculum  arrangements  to  help  model  training.  
+In this  way,  not  only  the  performance  and  convergence  speed  are  im -
+proved, but  also  the  generalization  capacity  is  increased.  As  we  discussed  
+earlier, it  is  critical  for  curriculum  learning  to  train  the  model  by  effi -
+ciently arranging  training  examples  from  simple  to  complex.  Following  
+Kano et  al.  [ 27], we  introduce  four  common  curriculum  arrangements  
+for curriculum  learning,  including  OnePass,  BabySteps,  Random,  and  
+Reverse curriculum.  The  overview  of  th ese curriculum  arrangements  is  
+shown in  Fig. 2 .
+Original training dataset
+Sorted training dataset
+Sort dataset by difficulty scores
+Easiest 
+examples
+Easier 
+examples
+Harder 
+examples
+Hardest 
+examples
+Easiest 
+exam
+ples
+Easier 
+examp
+les
+Harder 
+examp
+les
+Hardest 
+exam
+ples
+OnePass curriculum
+Easiest 
+examp
+les
+Easier 
+exam
+ples
+BabySteps curriculum
+Harder 
+examples
+Hardest 
+examples
+Reverse curriculum
+Easier 
+examples
+Easiest 
+examples
+Easiest 
+exam
+ples
+Easiest 
+exam
+ples
+Easier 
+examp
+les
+Harder 
+examp
+les ...
+Random 
+examples
+Random 
+examples ... Random 
+examples
+Random curriculum
+Random 
+examp
+les
+Random 
+examples ... Random 
+examples
+Random curriculum
+Fig. 2.  Illustration  of  the  training  paradigm  of  curriculum  learning.
+OnePass curriculum  is  first  proposed  by  Bengio  et  al.  [ 21], which  
+begins by  sampling  easy  examples  and  gradually  moves  to  harder  ones.  
+Until the  model  converges,  it  remains  on  that  batch  of  training  examples.
+BabySteps curriculum  is  originally  proposed  by  Spitkovsky  et  al.  
+[44], which  is  similar  to  the  OnePass  curriculum  that  follows  an  ascend -
+ing order.  The  difference  is  that  it  gradually  increases  the  complexity  of  
+training examples  without  discarding  easier  ones.
+Random curriculum  and  Reverse  curriculum  are  proposed  to  ver -
+ify the  efficiency  of  feeding  the  model  with  easier  instances  first  and  
+then more  complex  ones  is  a  good  way  for  training.  Specifically,  random  
+curriculum randomly  samples  from  the  original  dataset,  while  reverse  
+curriculum samples  training  examples  from  hard  to  easy  for  training.
+3.3. Mixture-of-experts  basics
+Mixture-of-Experts consists  of  multiple  separated  neural  networks  
+(Experts) and  a  gating  network,  which  can  be  traced  back  to  ensemble  
+learning. As  illustrated  in  Fig. 3 , MoE first  separates  the  input  dataset  
+into several  task-relevant  subsets,  and  then  assigns  distinct  subsets  to  
+different experts  for  training.  Since  each  expert  specializes  in  processing  
+a subset  of  the  entire  dataset,  it  achieves  better  performance  than  others.  
+Further, the  gating  network  is  designed  to  effectively  select  appropriate  
+experts for  different  inputs.
+As one  of  the  core  components  of  MoE,  the  gating  network  plays  an  
+important role  in  effectively  utilizing  the  capabilities  of  various  experts.  
+Specifically, it  assigns  each  piece  of  input  data  a  weight  that  indicates  
+the various  contributions  made  by  experts  in  processing  the  data.  As  
+another key  component  of  MoE,  the  Experts,  a  group  of  neural  net -
+works specialized  in  different  subsets,  play  a  crucial  role  in  improving  
+the overall  performance.  During  the  training  phase,  the  input  data  is  as -
+signed to  different  experts  for  training  by  the  gating  network.  During  
+the inference  phase,  experts  selected  by  the  gating  network  produce  
+corresponding predictions  for  the  inputs.  Lastly,  these  predictions  are  
+combined with  weights  assigned  by  the  gating  network  to  form  the  final  
+output.
+4. Methodology
+This section  presents  the  overall  structure  of  CLMoE,  a  novel  frame -
+work that  incorporates  the  training  paradigm  of  Curriculum  Learning  to  
+the architecture  of  Mixture-of-Experts  for  multi-document  summariza -
+tion. As  depicted  in  Fig. 4 , it comprises  two  main  phases:  curriculum  
+learning and  mixture-of-experts.  In  the  initial  stage,  multiple  input  
+documents are  used  to  train  difficulty-aware  experts  through  curricu -
+lum learning.  To  be  more  precise,  we  first  create  three  subsets  of  
+varying difficulties  from  the  training  set  using  the  proposed  multi -
+document difficulty  metric,  including  subset  #Easy,  subset  #Normal,  
+and subset  #Hard.  Then,  difficulty-aware  curriculum  schedules  are  used  
+for the  above  subsets  to  train  corresponding  experts,  including  expert
+Input
+Expert #1 Expert #2 Expert #N...Gating
+network
+Output
+Fig. 3.  Illustration  of  the  mixture-of-experts  architecture.
+Applied Soft Computing 186 (2026) 114088 
+4 
+
+===== PAGE 5 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+Multi-document 
+input
+Output 
+summary
+Mixture-of-Experts
+Difficulty-aware 
+curriculum learning
+From hard to esayFrom hard to esay
+From easy to hardFrom easy to hard
+...
+Multi-document
+difficulty metric
+Easy examples
+Hard 
+examples
+Difficulty-oriented 
+experts
+Expert #Easy
+Expert #Hard
+Curriculum Learning
+Difficulty-aware
+Mixture-of-Experts
+Fig. 4.  General  framework  of  the  proposed  CLMoE  for  multi-document  summarization.
+#Easy, expert  #Normal,  and  expert  #Hard.  Once  difficulty-aware  ex -
+perts are  obtained,  we  propose  to  coordinate  different  experts  in  the  
+mixture-of-experts stage  to  generate  output  summaries.
+A thorough  explanation  of  the  aforementioned  procedure  can  be  
+found in  the  ensuing  sub-sections.  Specifically,  the  proposed  CLMoE  
+framework mainly  contains  the  following  three  modules:  (1)  multi -
+document difficulty  metric  ( Section 4.1 ), (2)  difficulty-aware  curricu -
+lum learning  ( Section 4.2 ), and  (3)  difficulty-aware  mixture-of-experts  
+(Section 4.3 ). 
+4.1. Multi-document  difficulty  metric
+The difficulty  scores  play  an  important  role  in  curriculum  learning,  
+serving to  differentiate  between  straightforward  instances  and  challeng -
+ing ones.  The  difficulty  of  multi-document  inputs  can  be  defined  in  
+a variety  of  ways,  such  as  lexical  complexity,  syntactic  diversity,  and  
+inter-document relationships,  etc.  Motivated  by  the  difficulties  humans  
+encounter in  MDS,  we  propose  an  effective  multi-document  difficulty  
+metric that  consists  of  two  heuristic  categories:  (1)  semantic  analysis  to  
+assess content  complexity,  and  (2)  lexical  analysis  to  quantify  surface  
+difficulty. For  semantic  analysis,  we  employ  two  key  factors  to  capture  
+inter-document relationships,  namely  contextual  coherence  and  topic  
+similarity. Concurrently,  the  lexical  analysis  considers  the  number  of  
+documents, document  length,  and  document  entropy  to  measure  the  sur -
+face difficulty  of  each  document  set.  As  defined  in  Section 3.1 , we denote  
+the dataset  as  a  collection  of  M  document  sets  D  =  { Di
+ 
+ 
+} M ,i=1
+ where  each  
+Ndocument set  contains  N  documents  
+i
+ 
+D 
+ 
+= { d } ,  and eachi i j j=1
+  document  
+K
+is a  sequence  of  K  
+j 
+words d
+ 
+j = j
+  
+ 
+{ w 
+k 
+}
+ 
+.k=1
+ Correspondingly,  there  is  a
+Nsequence
+ 
+ of  document  lengths  L  
+i = { l } i 
+forj j=1
+  
+ 
+each document  set  D  
+ 
+,i 
+where l  
+ 
+represents the  length  of  document  d  
+ 
+.j j
+Contextual coherence.  As  discussed  in  Zhang  et  al.  [ 45], multi -
+document inputs  often  entail  complex  inter-document  relationships,  
+such as  redundant  information  and  conflicting  content.  The  presence  
+of contradictory  content  in  the  document  set  not  only  leads  to  seri -
+ous context  incoherence,  but  also  harms  the  performance  of  automatic  
+summarization systems.  Such  scenarios  typically  demand  more  cogni -
+tive resources  for  logical  reasoning  to  produce  concise  and  accurate  
+summaries. Therefore,  contextual  coherence  is  crucial  for  evaluating  
+the difficulty  of  MDS  task.  In  subsequent  experiments,  we  employ  
+the well-established  doc2vec  [ 46] technique  to  quantitatively  evaluate  
+contextual coherence  by  analyzing  whether  the  deep  semantic  repre -
+sentations of  the  multi-document  inputs  reside  within  a  similar  space.  
+Hence, the  difficulty  score  of  contextual  coherence  can  be  calculated  as  
+follows:
+Score  
+Coherence  
+(D 
+i) ∈  
+1
+N 
+i 
+N 
+i 
+∑
+m,n
+Coherence (d 
+m, d 
+n 
+)
+= 
+1
+N 
+i 
+N 
+i 
+∑
+m,n
+Distance(V ec (d 
+m 
+), V  ec (d 
+n 
+)) (2)
+where V  ec (ddenote the deep semantic vectors of documentm
+ 
+ 
+), V  ec (dn
+ )         
+dm
+ , d  
+n 
+. Here,  we  employ  the  BART-large-cnn  model  to  generate  dense
+semantic embeddings  from  the  input  text.  This  choice  is  predicated  on  
+its demonstrated  superiority  in  generating  high-quality  contextualized  
+representations, benefiting  from  its  sequence-to-sequence  architecture  
+which integrates  bidirectional  contextual  understanding  with  autore -
+gressive generation.  As  detailed,  the  embedding  for  each  input  text  was  
+derived from  the  final  hidden  state  of  the  [CLS]  token  to  produce  a  fixed -
+dimensional vector  encapsulating  the  core  semantics.  It  should  be  noted  
+that our  method  is  independent  of  the  specific  embedding  model  used.  
+While the  absolute  similarity  scores  exhibit  minor  fluctuations  across  
+different embedding  models,  the  relative  difficulty  rankings  of  the  input  
+texts remain  strongly  consistent.  
+Topic similarity.  Although  MDS  techniques  are  designed  to  process
+collections of  topically  related  documents,  practical  applications  fre -
+quently encounter  document  collections  containing  irrelevant  or  noisy  
+documents, which  inevitably  affects  the  quality  of  generated  summaries.  
+This phenomenon  is  particularly  pronounced  in  the  benchmark  datasets  
+such as  Multi-News.  The  presence  of  topic-irrelevant  or  noisy  documents  
+not only  misleads  the  automatic  summarization  system,  but  also  sig -
+nificantly increases  the  difficulty  of  generating  summaries.  Therefore,  
+measuring the  topic  similarity  of  multi-document  inputs  is  an  effective  
+way to  evaluate  the  difficulty  of  MDS.  In  summary,  the  difficulty  score  
+for topic  similarity  in  document  set  D  
+i 
+can be  defined  as  follows:
+Score  
+T opic  
+(D 
+i 
+) ∈  
+1
+N 
+i 
+N 
+i 
+∑
+m,n
+T opicSimilarity (d 
+m 
+, d 
+n 
+) (3)
+In particular,  the  advanced  BERTopic  [ 47] is  used  as  T  opicSimilarity (, )  
+to measure  the  topic  similarity  between  two  documents.
+Number of  documents.  It  goes  without  saying  that  different  docu -
+ment sets  contain  varying  numbers  of  documents.  In  general,  a  greater  
+number of  documents  contains  a  greater  amount  of  information,  as  more  
+documents provide  more  perspectives,  facts,  and  details.  However,  as  
+the number  of  documents  increases,  it  becomes  more  difficult  to  in -
+tegrate information  due  to  numerous  contradictions  and  redundancies  
+from multiple  sources.  Furthermore,  more  documents  typically  include  
+more information,  which  takes  more  time  and  effort  to  summarize.  It  
+makes sense  from  a  human  perspective  that  summarizing  becomes  more  
+challenging the  more  documents  there  are.  Therefore,  a  straightforward  
+definition of  the  difficulty  score  of  a  document  set  D  
+i 
+using the  number  
+of documents  is  defined  as  follows:
+Score  
+Number  
+(D 
+i 
+) ≜  N  
+i 
+(4)
+where N i
+ 
+ 
+is the  number  of  documents  in  the  document  set  D  
+i 
+.
+Length of  documents.  It  is  in  line  with  human  intuition  that  the
+length of  documents  also  plays  an  important  role  in  distinguishing  the
+difficulty of  multiple  documents.  In  the  remainder  of  this  section,  we
+focus on  total  length  and  length  distribution  as  proxy  measures  for  the
+length of  documents.
+Since the  total  length  represents  the  sum  of  the  lengths  of  multiple
+documents, a  greater  total  length  means  a  longer  document.  Typically,
+longer documents  tend  to  contain  more  details  and  contextual  informa -
+tion, which  helps  produce  more  comprehensive  and  detailed  summaries.
+Applied Soft Computing 186 (2026) 114088 
+5 
+
+===== PAGE 6 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+However, it  takes  more  time  and  effort  to  grasp  lengthier  articles  because  
+they contain  more  information.  We  argue  that  summarizing  multiple  
+documents with  a  larger  total  length  will  be  more  challenging.  As  a  
+result, the  difficulty  score  of  total  length  can  be  defined  as  follows:
+Score  
+T otalLength  
+(D 
+i) ∈  
+∑ 
+(L 
+i 
+) =
+N 
+i∑ 
+j=1
+l 
+j 
+(5)
+where l j
+ is  the  length  of  document  d  inj
+ document  set  D i
+ 
+ 
+.
+The length  distribution  reflects  the  relative  proportions  of  the  length  
+of each  document  in  a  multi-document  collection.  In  particular,  we  use  
+the standard  deviation  of  document  lengths  to  measure  the  dispersion  of  
+the length  distribution.  For  the  same  total  length,  multiple  documents  
+with a  less  discrete  length  distribution  will  be  more  difficult  to  sum -
+marize because  of  the  need  to  process  a  great  deal  of  information  from  
+diverse sources.  For  instance,  if  a  document  has  an  extremely  high  pro -
+portion in  the  document  set,  its  difficulty  score  will  be  lower  because  it  
+can be  regarded  as  a  pseudo-single  document.  Therefore,  the  difficulty  
+score of  length  distribution  can  be  calculated  as  follows:
+Score  
+LengthDistribution  
+(D 
+i 
+) ∈  1/ 𝜎(L 
+i 
+) =  1/
+|||√ 1
+N 
+i
+N 
+i∑ 
+j=1
+(l 
+j - - 
+l)  
+2 
+(6)
+[
+where 𝜎  denotes  the  standard  deviation  of  document  lengths  L  
+ 
+and l- isi
+ 
+ 
+the average  document  length  of  the  document  set  D i
+ .  
+Considering both  the  total  length  and  length  distribution  of  the  doc -
+ument set,  we  propose  the  followi ng difficulty  heuristic  for  t he length  of  
+documents.
+Score  
+Length  
+(D 
+i) ≜
+∑ 
+(Li 
+)
+𝜎(L 
+i 
+) 
+=
+∑N 
+i 
+j=1 l 
+j
+/
+1
+N 
+i
+∑N 
+i 
+j=1 (l 
+j - -l)  
+2
+(7)
+Entropy of  documents.  Inspired  by  Peyrard  [ 48], the  degree  of  un -
+certainty and  information  included  in  a  text  can  be  expressed  using  
+the information  entropy  of  that  document.  Generally,  documents  with  
+high information  entropy  mean  that  they  contain  a  lot  of  information  
+and uncertainty,  necessitating  the  extraction  of  salient  content  through  
+filtering, integrating,  and  compressing.  Documents  with  low  informa -
+tion entropy  are  easier  to  summarize  since  they  include  less  information  
+and are  more  straightforward.  Hence,  we  define  the  difficulty  score  of  
+document entropy  as  follows:
+Score  
+Entropy  
+(D 
+i) ≜  Entropy (D 
+i 
+) =  -  
+∑ 
+p(w) log  p (w) (8)
+where p (w) is  the  probability  of  a  word  w  appearing  in  the  document  set
+D 
+i 
+.
+Multi-document difficulty  score.  Based  on  the  above  heuristics,  we  
+propose a  comprehensive  multi-document  difficulty  score  that  combines  
+these difficulty  scores.  To  facilitate  comparative  analysis,  it  is  necessary  
+to normalize  these  difficulty  scores  to  a  standardized  scale.
+N(Score ) =  
+Score  -  μ (Score )
+𝜎(Score ) (9)
+where μ (Score ) is  the  average  value  and  𝜎 (Score ) is  the  standard  
+deviation.
+Afterward, the  final  difficulty  score  of  a  multi-document  set  D  
+i 
+can 
+be formalized  as  follows:
+Score (D 
+i 
+) ≜  𝛼  
+1N(Score  
+C (D 
+i)) +  𝛼  
+2 
+N(Score  
+T 
+(D 
+i 
+))+ 
+𝛽 
+1N(Score  
+N (D 
+i 
+)) +  𝛽  
+2N(Score  
+L(D 
+i 
+)) +  𝛽  
+3N(Score  
+E (D 
+i)) 
+(10)
+where Score  ,N
+ Score  , areL
+ Score  
+E
+  
+   
+short for  Score  
+Number  
+, Score Leng
+ 
+th 
+, 
+Score  , coresEntropy
+ Score C
+ ,  Score T
+ denote  the  difficulty  s   
+ 
+of contextual  
+coherence and  topic  similarity,  and  𝛼,  𝛽  are  balancing  coefficients.
+4.2. Difficulty-aware  curriculum  learning
+As an  adaptive  MDS  framework,  difficulty-aware  curriculum  learn -
+ing mainly  consists  of  two  stages:  (1)  quantitative  difficulty  estimation  
+through multi-document  difficulty  metric,  and  (2)  dynamic  curricu -
+lum scheduling  using  difficulty-aware  curriculum  arrangement.  This  
+two-stage mechanism  enables  models  to  develop  robust  feature  repre -
+sentations by  allocating  computational  resources  proportionally  to  the  
+empirically measured  complexity  of  training  instances.
+Quantitative difficulty  estimation.  We  first  sort  the  training  ex -
+amples in  ascending  order  according  to  the  multi-document  difficulty  
+metrics discussed  above.  Instead  of  discarding  data  that  is  too  easy  or  
+too difficult,  we  group  training  examples  according  to  the  final  difficulty  
+scores, including  subset  #Easy,  subset  #Normal,  and  subset  #Hard.  As  
+shown in  Fig. 5 , we split  the  training  dataset  with  Gaussian  distribution  
+into three  subsets  at  a  ratio  of  1:3:1.  A  preliminary  analysis  reveals  that  
+there is  considerable  variability  in  difficulty  scores  across  examples.  If  
+the model  encounters  too  many  examples  with  substantial  difficulty  dif -
+ferences or  too  complex  instances  in  the  early  stage  of  training,  it  may  
+experience information  overload  or  overfitting.  It  is  crucial  to  gradually  
+process examples  of  similar  difficulty  through  group  training,  as  it  can  
+not only  improve  the  efficiency  of  model  training,  but  also  reduce  the  
+risk of  overfitting.
+Dynamic curriculum  schedule.  In  this  part,  we  introduce  the  
+difficulty-aware curriculum  arrangement  to  train  corresponding  expert  
+models for  different  subsets.  Specifically,  we  employ  distinct  train -
+ing strategies  to  accommodate  data  of  varying  complexity,  which  is  
+illustrated in  Algorithm 1 .
+For the  subset  #Easy,  we  employ  reverse  curriculum  training  to  ob -
+tain expert  #Easy.  By  training  with  more  difficult  examples  initially,  the  
+model can  learn  key  features  more  quickly.  It  is  noteworthy  that  the  re -
+verse curriculum  only  works  for  the  subset  with  simple  instances.  One  
+possible explanation  is  that  relatively  hard  examples  in  the  subset  #Easy  
+are acceptable  for  the  initial  model.  For  the  subset  #Normal,  we  adopt  
+a progressive  training  strategy  to  obtain  expert  #Normal.  Specifically,  
+the model  starts  by  processing  relatively  simple  examples,  and  then  
+gradually introduces  more  complex  ones.  Such  training  paradigm  not  
+only enhances  model  robustness  through  gradual  confidence  building,  
+but also  significantly  improves  its  generalization  capability  on  challeng -
+ing examples.  In  particular,  we  implement  progressive  training  using  
+the widely  used  BabySteps  curriculum  in  the  following  experiments.  
+Inspired by  Xia  et  al.  [ 49], we  train  the  corresponding  expert  in  a  ran -
+dom manner  for  the  subset  #Hard.  Since  neither  progressive  training  
+nor reverse  training  provides  any  benefit  for  high-difficulty  scenarios,  
+we decide  to  use  a  randomized  training  approach.  This  will  be  discussed  
+in detail  in  Section 6.4 .
+Easy 
+examples
+Hard 
+examples
+Difficulty scores
+Normal 
+examples
+Fig. 5.  Data  distribution  based  on  the  final  difficulty  scores.
+Applied Soft Computing 186 (2026) 114088 
+6 
+
+===== PAGE 7 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+Algorithm 1  Difficulty-aware  curriculum  learning  for  MDS.
+Input: The  backbone  model  of  MDS  𝚯  =  ( Θ 
+enc, Θ 
+dec ), the   
+  
+training dataset
+consisting of  M  document  sets  D  =  { D 
+i} M , cument=1
+ the  multi-doi
+ dif
+ficulty metric  M etric(.), the  upper  bound  score  for  easy  examples  
+Score  
+ 
+, the  lower boundEasy
+  score  for  hard  examples  Score H
+ 
+ard 
+, and
+ 
+-
+MaxEpochs .
+Output: Difficulty-aware  experts  {𝚯 easy
+ 
+ 
+,𝚯 normal
+ 
+ 
+,𝚯 hard
+ } . 
+Step 1.  Calculate  the  multi-document  difficulty  scores.  
+for D i
+ ∈  D  do  
+Score  =  { Score   
+ 
+} M , wherei i=1
+ Score i
+ =  Metric (D 
+i 
+).
+end for  
+Step 2.  Sort  the  training  dataset  using  difficulty  scores.
+D 
+* 
+= sort (D, Score ) =  { D 
+*
+1, D*
+2,..., D * }M
+ 
+∀i < j, Score * 
+≤Score * 
+    
+i
+  ⟷j
+ Metric (D*)i
+ ≤  Metric (D*)j .
+Step 3.  Split  the  training  dataset  into  subsets  of  varying  difficulty.
+D 
+* 
+→ { D* 
+easy
+ , D *
+normal,D * }hard
+ 
+∀D 
+* ∈ D * 
+ , Metric (D*)i easy i < Score  . ∀ D 
+* * ≥Easy
+ ∈ j
+  
+ 
+D*
+normal, Metric(D)j
+ 
+Score  
+Easy  
+, Metric(D*)< Score  
+*
+Hard .∀ D ∈ Dj k
+ 
+*
+hard
+ , Metric (D*)k
+ ≥
+Score  
+Hard  
+. 
+Step 4.  Train  with  difficulty-aware  curriculum  arrangement.
+Sample batches  using  distinct  curricula  for  subsets  of  varying  diffi -
+culty:
+(a) 
+*Reverse sampling  of  easy  subsets:  B  
+reverse =easy
+ ReverseB atch(Deasy
+ ) .
+(b) BbabystepsBabySteps for  normal  ones:   =  BabyStepsBatch (D* ).normal normal
+(c) 
+*Random sampling  of  hard  subsets:  B  
+random =hard
+ RandomBatch (D) .hard
+ 
+for epoc h =  1  to  MaxEpochs  do
+babystepsFine-tune 𝚯  on  batches  of  data  B  
+reverse 
+easy , Bnormal , Brandom ,hard
+ separately.
+end for
+Multi-document input
+Expert 
+#Easy
+Expert 
+#Normal
+Expert 
+#Hard
+Difficulty-oriented experts
+Summary 
+#Easy
+Summary  
+#Hard
+Summary 
+#Normal
+...
+...
+Expert 
+#Easy
+Expert 
+#Normal
+Expert 
+#Hard
+Difficulty-oriented experts
+Summary 
+#Easy
+Summary  
+#Hard
+Summary 
+#Normal
+...
+...
+Output summary
+Summary selector
+Difficulty
+-aware
+gating 
+network
+Fig. 6.  Illustration  of  the  proposed  difficulty-aware  mixture-of-experts.
+Notably, the  investigation  of  a  hybrid  approach  combining  progres -
+sive and  reverse  training  paradigms  for  more  efficient  model  training  
+constitutes a  promising  direction  for  future  work.
+4.3. Difficulty-aware  mixture-of-experts
+Once difficulty-aware  experts  have  been  trained  using  the  proposed  
+difficulty-aware curriculum  learning,  it  is  necessary  to  unite  them  to  
+maintain generalization  performance  under  different  difficulty  levels.  
+As illustrated  in  Fig. 6 , the difficulty-aware  gating  network  and  the  
+summary selector  work  together  to  form  the  difficulty-aware  mixture -
+of-experts.
+Difficulty-aware gating  network.  As  we  mentioned  in  Section 3.3 , 
+the gating  network  plays  an  important  role  in  the  mixture  of  difficulty -
+aware experts.  It  is  an  essential  mechanism  in  the  mixture-of-experts  that  
+responds flexibly  to  complex  tasks  by  regulating  the  flow  of  information  
+between different  components.  Since  multi-document  summarization  
+aims to  achieve  a  balance  between  efficiency  and  performance,  we  adopt  
+a heuristic  gating  strategy.  We  fully  acknowledge  that  it  inherently  lacks  
+the adaptability  of  learnable  gating  networks  for  capturing  complex,  
+data-driven patterns.  In  contrast,  a  learnable  gating  mechanism  enables  
+data-driven optimization  of  the  input  routing  path  to  specialized  experts.  
+This data-driven  approach  has  the  potential  for  superior  performance  
+and better  generalization  to  unseen  data  distributions.  Nevertheless,  this  
+comes at  the  cost  of  greater  computational  overhead,  longer  training  
+time, and  loss  of  interpretability.  To  effectively  mix  experts  with  dif -
+ferent difficulty  levels,  we  propose  a  difficulty-aware  gating  network  to  
+select relevant  experts  by  judging  the  complexity  of  multi-document  in -
+puts. Specifically,  we  determine  the  difficulty  of  a  document  set  through  
+the pre-defined  multi-document  difficulty  metric.  This  aligns  well  with  
+the initial  goal  of  our  study,  which  is  to  establish  a  simple  yet  effective  
+framework for  multi-document  summarization.
+To enhance  the  overall  performance,  we  take  a  parallel  strategy  to  
+include more  experts,  that  is,  selecting  experts  with  corresponding  or  
+adjacent difficulty  levels  to  jointly  process  multi-document  inputs.  For  
+instance, if  the  difficulty  of  the  multi-document  input  is  easy,  we  select  
+expert #Easy  and  expert  #Normal  as  the  mixture  of  experts.  Therefore,  
+the proposed  difficulty-aware  gating  network  can  be  formalized  as  
+follows:
+Gate(D 
+i) =
+{
+|
+{
+|{
+[1, 1,  0] if Score (D 
+i) <  Score  
+Easy
+[1, 1,  1] if  Score  
+Hard  
+> Score (D 
+i 
+) ≥  Score  
+Easy
+[0, 1,  1] if Score (D 
+i) ≥  Score  
+Hard
+(11)
+where the  difficulty  score  Score (D 
+i 
+) of  a  multi-document  set  D  
+i 
+is calcu -
+lated using  formula  ( 10). In  particular,  we  adopt  the  hyperparameters  
+Score  
+Easy 
+and Score  
+Hard  
+which are  the  same  as  in  the  training  phase.
+Summary selector.  This  section  covers  the  details  of  selecting  the  
+final output  summary  from  candidate  summaries  generated  by  experts  
+with different  levels  of  difficulty.  More  specifically,  we  propose  the  sum -
+mary selector  to  choose  the  one  that  best  matches  the  document  set
+D 
+i 
+∈ D  from  a  series  of  candidate  summaries  C  
+i ∈ C.  
+To achieve  this,  it  is  ne cessary to  convert  the  document  set  and  
+candidate summaries  into  semantically  rich  word  embeddings.  Thanks  
+to pre-training  tasks  on  large-scale  corpora,  pre-trained  language  mod -
+-
+els understand  the  structural,  grammatical,  and  semantic  information  
+of textual  data  by  capturing  rich  contextual  relationships.  To  obtain  
+semantically rich  representations,  we  leverage  the  large  configuration  
+of BART  as  a  text  encoder  to  transform  the  input  text  into  embed
+dings of  fixed  length.  Following  Zhong  et  al.  [ 50], we  directly  load  
+the bart-large-cnn  checkpoint  to  obtain  semantically  rich  embeddings  
+for document  set  D   
+ 
+and the corresponding candidatei
+  summaries  C  
+i 
+. It
+is notable  that  we  represent  D  andi
+ C   
+ i  
+using the  hidden  state  of  the  
+special token  ‘[CLS]’  from  the  top  BART  layer.  Hence,  the  similarity  
+between document  set  and  candidate  summaries  can  be  calculated  as  
+follows:
+Similarity(D 
+i 
+, C 
+i 
+) =  cosine (E 
+Di , ECi )(12)
+where E  and  E represent  the  embeddings  of andDi Ci
+ D i
+  
+ 
+C 
+i 
+. Based  on  
+this, we  select  the  candidate  summary  with  the  greatest  similarity  to  the  
+multi-document input  as  the  output  summary.
+5. Experiments
+In this  section,  we  briefly  introduce  the  experimental  datasets,  
+evaluation metrics,  implementation  details,  and  comparison  baselines.
+Applied Soft Computing 186 (2026) 114088 
+7 
+
+===== PAGE 8 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+Table 1  
+The statistics  of  Multi-News  and  DUC-2004.  The  “Train”,  “Val”,  and  “Test”  
+columns indicate  the  number  of  examples  in  the  training,  validation,  and  test  
+sets, respectively.  The  “Number”,  “Length”  and  “Entropy”  columns  denote  the  
+average number,  average  total  length,  and  average  information  entropy  of  
+articles in  each  document  set,  respectively.
+Datasets Train Val Test Number Length Entropy
+Multi-News 44,972 5622 5622 2.79 1788.96 7.88
+subset #Easy 8994 1124 5622 2.03 551.47 7.18
+subset #Normal 26,983 3373 5622 2.53 1493.72 7.92
+subset #Hard 8985 1125 5622 4.32 3911.98 8.46
+DUC-2004 0 0 50 10.00 5792.96 8.75
+5.1. Experimental  datasets
+We evaluate  the  proposed  CLMoE  framework  using  two  MDS  bench -
+mark datasets:  Multi-News  and  DUC-2004  [ 51]. Statistical  details  of  the  
+experimental datasets  are  presented  in  Table 1 .
+Multi-News. It  is  designed  for  multi-document  summarization  in  
+the news  domain,  containing  various  news  articles  related  to  a  specific  
+topic along  with  human-created  golden  summaries.  In  accordance  with  
+the experimental  configuration  outlined  by  Pasunuru  et  al.  [ 52], the  
+Multi-News dataset  is  partitioned  into  44,972/5622/5622  instances  des -
+ignated for  training,  validation,  and  testing,  respectively.  Each  instance  
+comprises 2–10  news  articles  with  an  average  length  of  1789  words,  ac -
+companied by  1  human-written  summary  with  an  average  length  of  241  
+words. In  particular,  we  utilize  the  proposed  multi-document  difficulty  
+metric to  split  the  large-scale  Multi-News  dataset  into  three  subsets  with  
+different difficulties  at  a  ratio  of  1:3:1,  including  subset  #Easy,  subset  
+#Normal, and  subset  #Hard.  Compared  with  the  original  Multi-News  
+dataset, the  subset  #Easy  has  smaller  values  in  the  “Number”,  “Length”  
+and “Entropy”  columns,  while  the  subset  #Hard  has  larger  values.  These  
+results suggest  that  the  complexity  of  subset  #Easy,  subset  #Normal,  
+and subset  #Hard  continuously  increases,  which  is  consistent  with  our  
+expectations. To  ensure  a  fair  comparison  of  model  performance,  sub -
+sets #Easy,  #Normal,  and  #Hard  use  the  same  test  set  as  the  original  
+Multi-News dataset.
+DUC-2004. It  is  a  relatively  small-scale  benchmark  dataset  for  multi -
+document summarization  tasks  that  was  proposed  during  the  2004  
+Document Understanding  Conference  (DUC-2004).  In  detail,  it  com -
+prises 50  article-summary  pairs,  wherein  each  pair  consists  of  10  news  
+articles related  to  the  same  topic  along  with  4  summaries  crafted  by  hu -
+mans. In  comparison  to  the  Multi-News,  the  DUC-2004  consistently  has  
+a greater  average  number  of  documents,  average  total  length,  and  av -
+erage information  entropy  of  the  document  collection,  indicating  that  it  
+is more  challenging.  Following  Zhao  et  al.  [ 53], we  perform  a  test-only  
+setting on  the  DUC-2004  dataset  due  to  its  small  size.
+5.2. Evaluation  metrics
+Following Zhang  et  al.  [ 54], we  employ  the  well-established  ROUGE  
+[55] and  BERTScore  [ 56] for  automatic  evaluation  of  generated  sum -
+maries. For  BERTScore,  we  use  the  official  implementation  from  the  
+Tiiiger/bert_score repository  and  report  the  F1  scores.  Following  com -
+mon practice,  we  employ  the  roberta-large  model,  with  rescaling  im -
+plemented and  IDF  weighting  disabled.  All  reported  BERTScore  values  
+are provided  with  four  decimal  places  to  facilitate  precise  and  repro -
+ducible comparisons.  More  precisely,  the  quality  of  system  summaries  
+is measured  by  the  commonly  used  ROUGE-N,  ROUGE-L,  and  ROUGE -
+SU. By  determining  the  N-gram  overlapping  between  system  summaries  
+and reference  summaries,  ROUGE-N  evaluates  the  informativeness  of  
+generated summaries.  By  calculating  the  Longest  Common  Subsequence  
+(LCS) between  the  candidate  and  the  reference,  ROUGE-L  offers  cer -
+tain advantages  in  reflecting  comprehensive  coverage  of  reference.  By
+matching skip-bigrams  and  unigrams,  ROUGE-SU  can  better  handle  
+word order  discrepancies  and  semantic  associations  between  system  and  
+reference summaries.  To  guarantee  an  equitable  comparison,  we  present  
+F1 scores  for  ROUGE-N/L/SU  to  attain  a  comprehensive  assessment  out -
+come that  balances  precision  and  recall.  Thus,  the  standard  formulations  
+of ROUGE-N/L/SU  are  outlined  as  follows:
+ROU GE-N 
+P recision = 
+∑ 
+sentence∈Ref 
+∑ 
+gram  
+N 
+∈sentence  
+Count  
+match(gram  
+N )
+∑ 
+sentence∈Sys  
+∑ 
+gram  
+N 
+∈sentence  
+Count(gram  
+N ) 
+ROU GE-N 
+Recall = 
+∑ 
+sentence∈Ref 
+∑ 
+gram  
+N 
+∈sentence  
+Count  
+match(gram  
+N )
+∑ 
+sentence∈Ref 
+∑ 
+gram  
+N 
+∈sentence  
+Count(gram  
+N 
+)
+ROU GE-N 
+F1 = 
+2 X  ROU GE -N 
+Recall  
+X ROU GE -N 
+P recision
+ROU GE-N 
+Recall  
++ ROU GE -N 
+P recision  
+(13)
+where ROU GE -N 
+P recision  
+, ROU GE -NRec
+ , all
+ and  ROU GE -N 
+F1  
+denote
+the precision,  recall,  and  F1  value  of  ROUGE-N,  respectively.  Sys  and  
+Ref represent  the  system  summaries  and  the  corresponding  reference  
+summaries, respectively.  In  addition,  Count matc
+ 
+h 
+(gramindicates theN
+ )    
+ 
+number of  gram  
+ 
+in both  Sys  and ,N
+ Ref   where  N  ∈  {1 , 2}  is  the  length  
+of N-gram  co-occurrence.
+ROU GE-L 
+P rec ision = LCS(Sys,  Ref  )
+length  
+Sys
+ROU GE-L 
+Recall = LCS(Sys,  Ref  )
+length  
+Ref 
+ROU GE-L 
+F1 = 2 X  ROU GE -L 
+Recall X ROU GE -L 
+P recision
+ROU GE-L 
+Recall  
++ ROU GE -L 
+P recision  
+(14)
+where RO U GE-L 
+P recision  
+, ROU GE -LRec
+ , all
+ and  ROU GE -L 
+F1  
+denote 
+the precision,  recall,  and  F1  value  of  ROUGE-L,  respectively.  length S
+ 
+ys 
+and length   
+ 
+denote the  length  of  Sys  and  Ref  ,  the  length of theRef
+ 
+longest common  subsequence  between  Sys  and  Ref is  measured  by
+LCS(Sys,  Ref  ).
+ROU GE-SU  
+P recision = Skip2-gram(Sys,  Ref  )  +  U ni-gram(Sys,  Ref  )
+Skip2-gram(Sys)
+ROU GE-SU  
+Recall = Skip2-gram(Sys,  Ref  )  +  U ni-gram(Sys,  Ref  )
+Skip2-gram(Ref )  
+ROU GE-SU  
+F1 = 2 X  ROU GE -SU  
+Recall  
+X ROU GE -SU  
+P recision
+ROU GE-SU  
+Recall  
++ ROU GE -SU  
+P recision
+(15) 
+where ROU GE -SUP
+ 
+ recision  
+, ROU GE -SU  
+Recall  
+, and  ROU GE -SUF
+ 
+1 
+denote the  precision,  recall,  and  F1  value  of  ROUGE-SU,  re-
+spectively. Skip 2-gram(Sys) denotes  skip-bigrams  in  Sys , whereas  
+Skip2-gram(Sys,  Ref  )  represents  skip-bigrams  in  both  generated  sys-
+tem summaries  and  reference  summaries.  Besides,  U ni -gram(Sys,  Ref  )  
+represents the  number  of  unigrams  in  both  Sys  and  Ref  .
+In addition,  we  employ  the  BERTScore  to  implement  semantic  eval -
+uation by  calculating  the  BERT  embedding  similarity  between  the  gen -
+erated text  and  the  reference  text  in  the  deep  semantic  space.  Compared  
+with widely-used  ROUGE  family,  BERTScore  can  effectively  capture  
+the implicit  semantic  associations  and  syntactic  structure  features  be -
+tween texts  through  the  deep  semantic  matching  mechanism,  especially  
+showing significant  advantages  when  dealing  with  complex  language  
+phenomena such  as  synonym  substitution,  word  order  permutation  and  
+semantic implications.
+Following the  experimental  setup  of  previous  studies  [ 57,58], we  
+report the  F1  values  of  ROUGE-1/2/L/SU  for  Multi-News  and  the  F1  
+values of  ROUGE-1/2/SU  for  DUC-2004 . In  this  way,  our  results  can  
+be compared  fairly  and  directly  with  existing  publications  in  a  consis -
+tent setting.  Notably,  all  reported  results  are  implemented  with  high  
+confidence using  the  official  ROUGE  library.
+Applied Soft Computing 186 (2026) 114088 
+8 
+
+===== PAGE 9 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+5.3. Implementation  details
+Pre-processing. As  the  core  of  CLMoE  framework  for  multi-document  
+summarization, we  construct  three  subsets  of  varying  difficulties  from  
+the original  Multi-News  dataset  using  the  proposed  multi-document  
+difficulty metric.  In  particular,  we  remove  erroneous  article-summary  
+pairs, which  are  noisy  data  caused  by  failures  to  obtain  the  source  ar -
+ticles. For  noisy  data,  the  total  length  of  source  documents  is  less  than  
+that of  the  reference  summary,  making  it  difficult  for  the  summarizer  
+to generate  high-quality  summaries.  Since  all  the  difficulty  heuristics  
+contribute to  the  proposed  multi-document  difficulty  score,  we  adopt  a  
+weighted summation  with  equal  hyperparameter  values  to  calculate  the  
+final difficulty  score.  To  effectively  partition  the  dataset  by  difficulty  
+scores while  ensuring  that  the  subset  are  adequate  for  training,  we  split  
+the original  Multi-News  dataset  into  3  subsets  with  a  ratio  of  1:3:1,  in -
+cluding subset  #Easy,  subset  #Normal,  and  subset  #Hard.  Afterward,  
+the Score  
+Easy  
+is set  to  the  maximum  difficulty  score  in  the  subset  #Easy,  
+while the  hyperparameter  Score  
+Hard  
+is set  to  the  minimum  difficulty  
+score in  the  subset  #Hard.
+Semantic difficulty  scoring.  As  discussed  in  previous  section,  the  
+implementation of  semantic  difficulty  scoring  consists  of  two  key  
+stages: embedding  extraction  and  similarity  computation.  To  obtain  
+high-quality contextualized  semantic  representations  of  input  texts,  the  
+popular BART  (Bidirectional  and  Auto-Regressive  Transformers)  model  
+is adopted  as  the  semantic  encoder.  In  our  experiments,  we  employ  
+the BART-large-cnn  model  from  Hugging  Face  library  as  the  embed -
+ding model.  For  a  given  text  input,  we  extract  the  embeddings  from  
+the final  hidden  layer  of  the  semantic  encoder.  More  specifically,  we  
+utilize the  hidden  state  of  the  [CLS]  token  from  the  final  layer  of  BART -
+large-cnn, which  serves  as  a  comprehensive  representation  of  the  entire  
+input sequence.  This  process  converts  the  input  text  into  a  dense  fixed -
+dimensional vector  that  effectively  captures  its  semantic  essence.  Once  
+the semantic  embeddings  for  a  pair  of  texts  are  obtained,  we  quantify  
+their semantic  relationship  by  calculating  the  cosine  similarity  between  
+their respective  vector  representations.  The  co sine similarity  metric  
+effectively captures  the  directional  alignment  in  the  semantic  space,  pro -
+viding a  reliable  indicator  of  their  spatial  proximity  as  well  as  semantic  
+consistency. It  is  important  to  note  that  the  semantic  difficulty  scores  
+serve solely  to  establish  a  relative  difficulty  hierarchy  across  documents.  
+In this  way,  lower  inter-document  semantic  similarity  is  interpreted  
+as indicating  greater  difficulty.  Consequently,  we  can  create  stratified  
+training sets  without  implying  precise  difficulty  scores.
+Backbone model.  Following  Pasunuru  et  al.  [ 52], we  select  BART  
+as the  backbone  model  to  implement  the  CLMoE  framework  for  multi -
+document summarization.  Distinct  from  conventional  approaches  that  
+rely solely  on  bidirectional  architectures  (e.g.,  BERT)  or  purely  autore -
+gressive frameworks  (e.g.,  GPT-2),  BART  synergistically  merges  a  bidi -
+rectional encoder  with  a  left-to-right  autoregressive  decoder  designed  
+for linguistically  coherent  generation.  Both  the  encoder  and  decoder  
+are built  upon  multiple  layers  of  self-attention  mechanisms  and  feed -
+forward networks,  augmented  with  layer  normalization  and  residual  
+connections to  ensure  stable  training  and  efficient  gradient  propagation.  
+Additionally, while  PEGASUS  is  specifically  designed  for  summariza -
+tion, our  analysis  reveals  that  its  single-document-oriented  pre-training  
+paradigm is  less  adaptable  to  multi-document  summarization.  Due  to  its  
+unique neural  architecture  that  effectively  integrates  bidirectional  en -
+coding and  autoregressive  decoding  mechanisms,  BART  demonstrates  
+exceptional suitability  for  MDS  tasks.  Specifically,  BART  can  not  only  
+model contexts  across  multiple  documents,  but  also  generate  coherent  
+summaries through  its  autoregressive  decoder.  It  is  important  to  empha -
+size that  our  CLMoE  framework  is  inherently  model-agnostic  and  can  be  
+flexibly integrated  with  various  backbone  models.
+Hyperparameter settings.  In  our  experiments,  we  implement  the  
+large configuration  of  BART  on  the  top  of  fairseq  library,  which  includes  
+12 encoder–decoder  layers,  16  attention  heads,  and  1024  embedding
+dimensions. Specifically,  we  train  difficulty-aware  experts  by  effec -
+tively fine-tuning  the  BART-large-cnn  checkpoint  on  different  subsets.  
+Following the  common  BART  fine-tuning  procedure,  we  optimize  the  
+cross entropy  loss  function  using  the  Adam  optimizer.  More  precisely,  a  
+dropout rate  of  0.1,  an  initial  learning  rate  of  2 e 
+-5  
+, and  warm-up  steps  
+of 500  are  set.  The  number  of  fine-tuning  epochs  is  set  to  5  or  10,  the  
+training batch  size  is  configured  to  8,  and  the  testing  batch  size  is  set  to  
+16. Based  on  the  maximum  encoding  length  of  BART-large,  the  multi -
+document input  is  truncated  to  a  total  length  of  1024  tokens  by  evenly  
+extracting from  each  document.  During  inference,  we  employ  a  maxi -
+mum decoding  length  of  300  for  Multi-News  and  150  for  DUC-2004 . The  
+settings of  selected  hyperparameters  are  shown  in  Table 2 .
+Hardware. We  fine-tune  BART  model  on  a  workstation  equipped  
+with NVIDIA  Tesla  A10  GPU  (24GB)  to  train  difficulty-aware  experts.  
+More specifically,  we  spent  3.5  h  training  the  experts  #Easy  and  #Hard  
+for 5  epochs  on  the  subsets  of  #Easy  and  #Hard,  respectively.  To  
+train the  expert  #Normal,  we  fine-tune  the  BART  model  on  the  subset  
+#Normal for  10  epochs,  which  takes  about  6  h.  Particularly,  we  per -
+form three  independent  replicates  for  each  experiment  and  report  the  
+average values  in  the  manuscript.  To  reproduce  our  results,  the  source  
+codes and  checkpoints  are  available  at  https://github.com/zhangming-
+19/MDS-CLMoE.
+5.4. Comparison  baselines
+To evaluate  the  efficacy  of  our  proposed  CLMoE  framework,  we  select  
+a range  of  well-established  baselines  related  to  implementation  tech -
+niques and  experimental  datasets  for  comparison.  Notably,  we  report  
+the optimal  outcomes  documented  in  their  official  publications  for  com -
+parative analysis.  In  the  remainder  of  this  section,  we  briefly  introduce  
+methods with  limited  input  lengths  as  well  as  methods  with  greater  input  
+lengths, respectively.
+Methods with  limited  input  lengths.  Due  to  the  maximum  input  
+length limit  of  the  summarizer,  a  series  of  effective  preprocessing  op -
+erations are  usually  taken  to  extract  salient  content  from  the  original  
+input before  summarization.
+In our  experiments,  we  first  select  classic  pointer  generator  network  
+for comparison,  taking  Hi-MAP  [ 11] as  an  example.  We  also  select  strong  
+Transformer [ 59] and  its  variations  for  comparison,  including  Copy -
+Transformer [ 60], Hier-Transformer  [ 61], and  Flat-Transformer  [ 62]. 
+Furthermore, we  select  several  powerful  PLMs  and  their  variations  as  
+strong baselines,  including  BART  [ 63], BART-Long,  and  BART-Long -
+Graph [ 52]. Besides,  we  select  a  series  of  graph-based  methods  for  
+comparison, including  SummPip  [ 64] and  MGSum  [ 65]. In  particular,  a  
+number of  recently  proposed  models  are  also  chosen  for  thorough  com -
+parison, including  Karcı  [ 66], CTF-DPP  [ 67], KPAT  [ 68], and  HierMDS  
+[58]. Finally,  we  select  progressive  models  for  comparison,  including  
+ProCluster [ 69], REFLECT  [ 15], and  HMSumm  [ 70].
+Methods with  greater  input  lengths.  Typically,  the  maximum  encod -
+ing length  for  such  summarizers  is  16,384  tokens.  It  has  been  shown  that  
+methods with  greater  input  lengths  can  achieve  better  performance  at  
+the cost  of  greater  computation  time  and  memory  [ 71].
+Table 2  
+Hyperparameter settings  of  the  proposed  method.
+Hyper-parameters Values Description
+𝛼 
+1 
+,𝛼 ,2 𝛼,3 𝛽,1 𝛽2 0.2 Balancing coefficients  for  difficulty  scores
+Score  
+Easy  
+0.2 Upper bound  score  for  easy  examples  
+Score  
+Hard  
+0.8 Lower bound  score  for  hard  examples  
+dropout  0.1 Dropout rate  for  BART  model  fine-tuning  
+learn  
+rate 
+2e 
+-5  
+Learn rate  for  BART  model  fine-tuning  
+batchsize
+ 
+ 
+8/16 Batch size  for  BART  model  fine-tuning
+max 
+epoch 5/10 Max epoch  for  BART  model  fine-tuning  
+max 
+length  
+150/300 Maximum Length  of  Generated  Summaries
+warm-upsteps
+ 500 Warm-up Steps  for  BART  model  fine-tuning
+Applied Soft Computing 186 (2026) 114088 
+9 
+
+===== PAGE 10 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+Specifically we  first  select  multiple  enhanced  versions  of  the  
+Longformer-Encoder–Decoder (LED)  for  comparative  analysis,  includ -
+ing BART-LED  and  BART-LED-RELAX  [ 57]. Additionally,  we  choose  two  
+potent PLMs  specifically  designed  for  the  abstractive  MDS  task,  namely  
+PRIMERA [ 71] and  Centrum  [ 72]. Furthermore,  we  select  the  sophis -
+ticated PRIMERA-GIE  [ 73] implemented  on  PRIMERA  for  comparison.  
+Lastly, we  incorporate  Large  Language  Models  (LLMs)  into  our  evalua -
+tion framework,  specifically  considering  the  popular  LLAMA  [ 74] and  
+StableLm-Zephyr [ 75].
+6. Results  and  analysis
+This section  provides  thorough  experimentation  and  in-depth  anal -
+ysis to  demonstrate  the  effectiveness  of  our  CLMoE  framework  for  the  
+MDS task.  To  begin  with,  a  comprehensive  analysis  of  automatic  eval -
+uation utilizing  the  widely-used  ROUGE  metric  on  Multi-News  and  
+DUC-2004 is  discussed.  Then,  the  effects  of  different  difficulty  metrics  
+and curriculum  arrangements  are  investigated  in  the  following  sections.  
+Finally, we  conduct  an  ablation  analysis  to  confirm  the  effectiveness  of  
+the main  modules  of  CLMoE.
+6.1. Results  on  Multi-News
+The experimental  results  of  automatically  evaluating  Multi-News  uti -
+lizing ROUGE-1/2/L/SU  F1  scores  are  displayed  in  Table 3 . Within  
+each column,  the  boldface  is  used  to  highlight  better  values,  and  under -
+line is  employed  to  indicate  the  foremost  three  competitive  outcomes.  
+Additionally, we  employ  a  paired  t -test  to  determine  the  statistical  signif -
+icance between  our  method  and  competitive  baselines,  which  is  denoted  
+by † . We  can  draw  the  following  conclusions  from  this  table.
+Due to  the  maximum  input  length  limitation  of  BART,  the  proposed  
+BART-CLMoE belongs  to  the  input-constrained  method.  Compared  with
+Table 3  
+Automatic evaluation  results  of  Multi-News  using  ROUGE  F1  scores.  Bold  
+highlights better  values,  underline  marks  competitive  results,  and  †  indicates  
+statistical significance  at  t -test.
+Methods with  
+limited input  length
+ROUGE-1 ROUGE-2 ROUGE-L ROUGE-SU
+Copy-Transformer 
+[60]
+43.57 14.03 19.50 17.37
+Hier-Transformer 
+[61]
+42.36 15.27 22.08 –
+Hi-MAP [ 11] 43.37 14.89 – 17.41
+Flat-Transformer 
+[62]
+44.32 15.11 20.50 –
+CTF-DPP [ 67] 45.84 15.94 21.02 –
+MGSum [ 65] 46.00 16.81 – 20.09
+BART [ 63] 47.82† 18.11† 23.77† 19.32†
+BART-Long [ 52] 48.54† 18.56† 23.78† 20.28†
+BART-Long-Graph
+[52]
+49.24† 18.99† 23.97† 20.81†
+HMSumm [ 70] 46.12 17.51 – –
+KPAT [ 68] 45.30 15.96 – 18.62
+REFLECT [ 15] 49.27† 19.96‡ 24.76‡ 21.02‡
+HierMDS [ 58] 45.96 16.49 – 19.34
+Methods with
+greater input  length
+ROUGE-1 ROUGE-2 ROUGE-L ROUGE-SU
+BART-LED [ 57] 46.89 18.50 24.84 –
+BART-LED-RELAX 
+[57]
+47.23 18.86 25.03 –
+PRIMERA [ 71] 49.90 20.90 25.80 –
+Centrum [ 72] 49.00 20.40 25.40 –
+PRIMERA-GIE [ 73] 50.30 21.10 26.40 –
+LLaMA-8B [ 74] 47.88 17.82 23.58 –
+StableLm-Zephyr-3B 
+[75]
+46.84 16.31 22.64 –
+BART-CLMoE (Ours) 49.94 20.20 24.86 21.24
+† p  <  0 .01; ‡  p  <  0 .05.
+Table 4  
+Automatic evaluation  results  of  Multi-News  using  BERTScore.  
+Bold highlights  better  values,  underline  marks  competitive  
+results, and  †  indicates  statistical  significance  at  t -test.
+Model BERTScore
+CTF-DPP [ 67] 85.20
+BART [ 63] 87.00†
+REFLECT [ 15] 87.10†
+BART-Long-Graph [ 52] 87.30‡
+BART-CLMoE (Ours) 87.40
+† p <  0 .01; ‡  p  <  0 .05.
+methods with  limited  input  length,  our  method  achieves  the  state-of -
+the-art performance  on  the  Multi-News  dataset.  Specifically,  our  method  
+outperforms the  classic  Hi-MAP  as  well  as  well-established  Transformer -
+based variants,  such  as  Hier-Transformer,  Copy-Transformer,  and  Flat -
+Transformer. Compared  with  powerful  BART  and  its  improved  variants  
+(BART-Long and  BART-Long-Graph),  the  proposed  BART-CLMoE  shows  
+consistent performance  improvements  in  terms  of  ROUGE-1/2/L/SU.  
+More precisely,  the  proposed  method  achieves  statistically  significant  
+improvements over  these  competitive  baselines.  Furthermore,  our  ap -
+proach yields  considerable  gains  in  ROUGE-1  and  ROUGE-2  when  
+compared to  recently  advanced  models  such  as  HMSumm,  KPAT,  and  
+HierMDS. Specifically,  the  ROUGE-1  and  ROUGE-2  scores  of  BART -
+CLMoE are  3.82  and  2.69  higher  than  HMSumm.  Moreover,  there  are  
+significant margins  between  the  proposed  BART-CLMoE  and  the  ad -
+vanced REFLECT.  Our  method  outperforms  the  best  input-constrained  
+method (REFLECT)  by  an  average  of  0.31,  with  an  improvement  of  
+0.22 in  ROUGE-SU.  All  these  findings  illustrate  the  potential  of  our  
+CLMoE framework  for  multi-document  summarization.
+Compared to  methods  with  greater  input  length,  the  proposed  
+BART-CLMoE yields  competitive  outcomes.  More  precisely,  our  method  
+significantly improves  ROUGE-1  and  ROUGE-2  when  compared  to  the  
+powerful BART-LED  and  BART-LED-RELAX.  Although  PLMs  specifically  
+designed for  multi-document  summarization  outperform  BART-CLMoE,  
+they typically  suffer  from  greater  computational  time  and  memory  over -
+head for  training,  testing,  or  fine-tuning.  As  described  in  [ 73], it  is  
+necessary to  conduct  a  7-h  training  for  PRIMERA-GIE  on  a  worksta -
+tion furnished  with  8  Tesla  V100  GPUs  each  with  a  memory  capacity  
+of 32  GB.  In  comparison,  we  conduct  training  for  BART-CLMoE  on  
+a workstation  equipped  with  two  Tesla  A10  GPUs  with  24  GB  mem -
+ory, and  the  total  training  time  is  about  6.5  h.  Since  our  method  
+requires fewer  computing  resources  for  training,  it  is  applicable  to  vari -
+ous resource-constrained  scenarios.  Compared  with  powerful  LLaMA-8B  
+and StableLm-Zephyr-3B,  the  proposed  BART-CLMoE  shows  consistent  
+performance improvements  in  terms  of  ROUGE-1/2/L.  One  possible  
+reason is  that  these  large  language  models  has  not  been  sufficiently  
+fine-tuned due  to  limited  data.  Although  our  method  focuses  on  PLMs  
+due to  computational  limitations,  it  is  worth  emphasizing  that  the  
+CLMoE framework  is  model-agnostic  by  design.  Specifically,  the  back -
+bone model  can  be  replaced  with  other  powerful  summarizers,  such  as  
+PRIMERA, which  is  expected  to  perform  better.
+Beyond the  ROUGE  metric,  Table 4  presents the  BERTScore  evalu -
+ation results,  which  also  plays  a  critical  role  in  evaluating  the  quality  
+of real  summaries.  There  is  a  statistically  significant  improvement  
+between the  proposed  method  and  other  baselines  with  competitive  
+results. The  results  show  that  our  CLMoE  framework  improves  model  
+performance by  combining  curriculum  learning  (CL)  paradigm  with  
+mixture-of-experts (MoE)  structure.
+6.2. Results  on  DUC-2004
+The automatic  evaluation  results  of  DUC-2004  with  test-only  setting  
+utilizing ROUGE-1/2/SU  F1  scores  are  displayed  in  Table 5 . From  this  
+table, we  can  derive  the  following  interesting  observations.
+Applied Soft Computing 186 (2026) 114088 
+10 
+
+===== PAGE 11 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+Table 5  
+Automatic evaluation  results  of  DUC-2004  with  test-only  setting  using  
+ROUGE F1  scores.  Bold  highlights  better  values,  underline  marks  competi -
+tive results,  and  †  indicates  statistical  significance  at  t -test.
+Model ROUGE-1 ROUGE-2 ROUGE-SU Average
+Copy-Transformer [ 60] 28.54 6.38 7.22 14.05
+BART [ 63] 32.54 7.95 8.33 16.27
+BART-Long [ 52] 33.82 8.09 10.53 17.48
+BART-Long-Graph [ 52] 34.72 7.97 11.04 17.91
+Hier-Transformer [ 61] 33.67 7.44 11.97 17.69
+Hi-MAP [ 11] 35.78 8.90 11.43 18.70
+HierMDS [ 58] 35.73 8.12 12.27 18.71
+SummPip [ 64] 36.30† 8.47† 11.55† 18.77†
+Karcı [ 66] 36.61† 7.77† 11.92† 18.77†
+MGSum [ 65] 37.24‡ 8.60† 12.67† 19.50†
+ProCluster [ 69] 38.71 9.62 14.07 20.80
+HMSumm [ 70] 41.85 12.17 – –
+BART-CLMoE (Ours) 37.45 11.14 13.92 20.84
+† p <  0 .01; ‡  p  <  0 .05.
+Compared to  several  strong  baselines,  our  method  achieves  compet -
+itive results  on  the  DUC-2004  dataset  in  a  test-only  setting.  Similarly,  
+our approach  significantly  outperforms  traditional  Hi-MAP,  efficient  
+models based  on  transformers  (such  as  Hier-Transformer  and  Copy -
+Transformer), and  sophisticated  graph-based  models  (e.g.,  SummPip  
+and MGSum).  In  addition,  the  BART-CLMoE  consistently  outperforms  
+the proven  BART  and  its  versions  (such  as  BART-Long  and  BART -
+Long-Graph) in  terms  of  ROUGE-1/2/SU.  For  instance,  our  method  
+shows an  average  enhancement  of  2.93  compared  to  the  advanced  
+BART-Long-Graph. Furthermore,  our  method  achieves  significant  per -
+formance improvements  in  ROUGE-1  and  ROUGE-2  compared  to  sev -
+eral sophisticated  models  that  have  been  proposed  recently,  including  
+HierMDS and  Karcı.  Compared  with  methods  with  competitive  re -
+sults, BART-CLMoE  shows  consistent  performance  improvements  in  
+terms of  ROUGE-1/2/SU.  Although  our  method  performs  comparably  
+to the  state-of-the-art  HMSumm  and  ProCluster,  these  encouraging  re -
+sults suggest  that  the  proposed  CLMoE  architecture  offers  a  viable  
+approach to  improving  multi-document  summarization.  It  must  be  
+mentioned that  HMSumm  and  ProCluster  are  trained  using  DUC-2002  
+and CNN/DailyMail  datasets,  which  have  similar  data  distributions  as  
+DUC-2004.
+6.3. Effects  of  different  difficulty  metrics
+As one  of  the  cornerstones  of  our  CLMoE  framework,  it  is  neces -
+sary to  effectively  divide  the  original  dataset  into  multiple  subsets  based  
+on difficulty  scores.  More  precisely,  the  quality  of  dataset  partitioning  
+depends on  the  effectiveness  of  the  difficulty  metric.  In  this  study,  we  
+propose five  heuristic  difficulty  metrics  for  semantic  analysis  or  lexical  
+analysis to  effectively  distinguish  the  difficulty  of  multi-document  in -
+puts. In  particular,  a  comprehensive  difficulty  metric  that  incorporates  
+the above  difficulty  scores  is  provided,  which  can  be  calculated  as  Eq. 
+(10). To  validate  the  efficacy  of  different  difficulty  metrics,  we  conduct  
+extensive experiments  using  curriculum  learning  paradigm.  Following  
+the experimental  setting  of  Sun  et  al.  [ 17], we  first  sort  Multi-News  
+dataset in  ascending  order  based  on  difficulty  criteria,  and  then  used  the  
+BabySteps curriculum  for  curriculum  learning.  Specifically,  we  employ  
+6 difficulty  metrics  to  evaluate  and  rank  the  Multi-New  dataset,  includ -
+ing Score  
+Number  
+, Score  
+Length  
+, Score  
+Entropy  
+, Score  
+Coherence  
+, Score  
+T opic 
+and 
+ours.
+From Table 6 , we derive  the  following  interesting  findings.  
+Specifically, all  difficulty  metrics  are  proven  to  be  effective  in  dis -
+tinguishing the  complexity  of  multi-document  inputs.  Compared  with  
+randomly shuffling  the  dataset,  methods  using  difficulty  metrics  demon -
+strate consistent  performance  improvements  in  terms  of  ROUGE-1/2/L.
+Table 6  
+Experimental results  on  Multi-News  with  different  difficulty  metrics.  
+Bold highlights  the  best  value  within  each  column.  None  means  the  
+dataset is  not  sorted.
+Difficulty metric ROUGE-1 ROUGE-2 ROUGE-L Average
+None 47.82 18.11 23.77 29.90
+Score  
+Entropy 48.38 18.68 24.00 30.35
+Score  
+Number 48.75 18.66 23.80 30.41
+Score  
+Length 48.85 18.64 23.79 30.43
+Score  
+Coherence 48.80 18.75 24.04 30.53
+Score  
+T opic 48.88 19.09 24.15 30.71
+Ours 49.42 19.37 24.35 31.05
+Table 7
+Experimental results  of  MDS-CL  on  Multi-News  with  different  curriculum  ar -
+rangements. Bold  highlights  the  best  value  within  each  column.
+Subset Curriculum ROUGE-1 ROUGE-2 ROUGE-L Mean &  Var.
+#Easy BabySteps 49.45 21.78 26.91 32.71± 0.07
+Reverse 49.68 22.12 27.40 33.07± 0.09
+Random 49.28 21.66 27.09 32.68± 0.12
+#Normal BabySteps 49.01 18.96 23.99 30.65± 0.06
+Reverse 47.76 17.79 23.03 29.53± 0.11
+Random 48.05 18.34 23.49 29.96± 0.15
+#Hard BabySteps 47.09 15.68 20.59 27.79± 0.13
+Reverse 47.21 15.82 20.74 27.92± 0.17
+Random 47.37 15.92 20.71 28.00± 0.14
+In particular,  training  with  curriculum  learning  shows  an  average  im -
+provement of  at  least  0.45  compared  to  training  randomly.  These  
+findings further  confirm  the  feasibility  of  applying  curriculum  learning  
+for multi-document  summarization  tasks.  Additionally,  the  effectiveness  
+of various  difficulty  metrics  is  given  in  the  order  shown  below:  Ours  >
+Score  
+T opic  
+> Score  
+Coherence  
+> Score  
+Length  
+> Score  
+Number  
+> Score  
+Entropy  
+.
+This also  verifies  the  efficacy  of  integrating  multiple  difficulty  heuristics  
+equally into  our  multi-document  difficulty  score.
+6.4. Effects  of  different  curriculum  arrangements
+As we  discussed  in  Section 4.2 , applying different  learning  strategies  
+for data  of  varying  difficulties  is  an  effective  training  method.  We  per -
+form the  following  experiments  to  prove  our  main  idea:  “Data  of  varying  
+difficulties are  suitable  for  different  learning  strategies”.  Specifically,  we  
+first split  the  Multi-News  dataset  into  three  subsets  based  on  the  pro -
+posed multi-document  difficulty  score,  including  #Easy,  #Normal,  and  
+#Hard. Then,  three  different  learning  strategies  are  applied  for  each  sub -
+set, including  progressive,  reverse,  and  random  learning.  To  be  more  
+specific, progressive  learning  takes  the  BabySteps  curriculum;  reverse  
+learning uses  the  Reverse  curriculum;  and  random  learning  adopts  the  
+Random curriculum.  It  is  noteworthy  that  these  results  are  automatically  
+evaluated on  the  validation  set  using  ROUGE-1/2/L.
+As shown  in  Table 7 , we have  calculated  the  mean  performance  
+and corresponding  variance  for  each  curriculum.  From  the  data  pre -
+sented in  this  table,  the  following  key  insights  can  be  determined.  For  
+the subset  #Easy,  the  reverse  learning  from  difficult  to  easy  has  bet -
+ter performance  than  other  strategies.  Compared  to  reverse  training,  
+random training  and  progressive  training  exhibit  average  performance  
+degradation of  0.39  and  0.36,  respectively.  For  the  subset  #Normal,  
+the progressive  training  from  easy  to  difficult  has  the  best  performance.  
+When compared  to  progressive  training,  reverse  training  shows  an  av -
+erage performance  reduction  of  1.12,  whereas  random  training  has  an  
+average performance  drop  of  0.69.  For  the  subset  #Hard,  the  random  
+training strategy  shows  the  best  performance.  More  precisely,  random
+Applied Soft Computing 186 (2026) 114088 
+11 
+
+===== PAGE 12 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+Table 8  
+Experimental results  of  different  backbone  models  on  Multi-News.  For  all  
+backbone models,  ROUGE  scores  increase  with  the  help  of  proposed  CLMoE  
+framework. Bold  highlights  the  best  value  within  each  column.
+ROUGE-1 ROUGE-2 ROUGE-L Avearge
+LongT5-large Backbone 47.18 18.44 24.18 29.93
+CLMoE 48.73 19.66 24.73 31.04
+PEGASUS-large Backbone 47.52 18.72 24.91 30.38
+CLMoE 49.21 19.68 25.07 31.32
+BART-large Backbone 48.70 19.01 24.11 30.61
+CLMoE 49.94 20.20 24.86 31.67
+training improves  average  performance  by  0.21  and  0.08  relative  to  pro -
+gressive and  reverse  training,  respectively.  These  positive  results  are  
+consistent with  our  theoretical  expectations  and  further  confirm  the  
+efficacy of  our  difficulty-aware  curriculum  learning.
+It is  worth  emphasizing  that  the  Random  curricula  achieves  a  mean  
+performance of  28.00  ±  0.14  on  the  Hard  subset,  which  is  consistently  
+superior to  that  of  other  curricula.  More  importantly,  the  variance  of  ran -
+dom training  on  the  Hard  subset  is  0.14,  reflecting  its  lower  volatility.  
+This lower  variance  provides  evidence  for  the  stability  and  reliability  
+of random  training.  Therefore,  the  random  curriculum  is  not  only  an  
+effective training  strategy  for  difficult  datasets,  but  also  relatively  sta -
+ble. Although  the  Baby-Steps  curriculum  achieves  the  lowest  variance,  
+its mean  performance  is  suboptimal,  making  it  a  stable  yet  ineffective  
+choice for  Hard  subset.  Further,  the  Reverse  curricula  exhibite  greater  
+variance, reflecting  increased  fluctuations  and  diminished  reliability.  
+These findings  provide  further  evidence  that  the  effectiveness  of  training  
+strategies depends  on  data  difficulty.
+6.5. Generalization  of  CLMoE  over  different  backbone  models
+To evaluate  the  generalization  capability  of  our  framework  across  
+different backbone  models,  we  substitute  the  previously  used  BART -
+large-cnn model  with  several  other  pre-trained  models.  Specifically,  
+we replace  the  original  BART-large  backbone  with  LongT5-large  and  
+PEGASUS-large, using  implementatio ns from  the  Hugging  Face  library.  
+All models  are  trained  and  evaluated  on  the  Multi-News  dataset  un -
+der consistent  experimental  settings  to  ensure  a  fair  comparison.  The  
+experimental results  of  different  backbone  models  on  Multi-News  are  
+presented in  Table 8 .
+As summarized  in  this  table,  the  results  indicate  that  CLMoE  frame -
+work consistently  enhances  the  performance  of  all  backbone  models.  
+For LongT5-large,  the  integration  of  CLMoE  increases  an  average  per -
+formance improvement  from  29.93  to  31.04.  More  importantly,  this  
+positive trend  is  consistently  observed  across  both  BART  and  PEGASUS  
+models as  well.  Specifically,  the  proposed  CLMoE  framework  achieves
+Table 10  
+Experimental results  of  ablation  study  on  Multi-News  using  ROUGE  
+F1 scores.  Bold  shows  the  best  performance  in  each  column,  and  †
+indicates statistical  significance.
+Model ROUGE-1 ROUGE-2 ROUGE-L Avearge
+BART-CLMoE 49.94 20.20 24.86 31.67
+w/o MoE 49.42† 19.37† 24.35† 31.05†
+w/o CLMoE 47.82† 18.11† 23.77† 29.90†
+† p  <  0 .01; ‡  p  <  0 .05.
+significant improvements  of  3.46  %  and  3.09  %  over  BART  and  
+PEGASUS, respectively.  These  improvements  demonstrate  that  the  ben -
+efits of  CLMoE  are  not  tied  to  a  specific  architecture  but  are  effective  
+across diverse  pre-trained  models.  This  cross-model  consistency  not  only  
+validates the  model-agnostic  of  CLMoE  but  also  suggests  its  potential  as  
+a portable  and  effective  extension  for  different  application  scenarios.
+6.6. Performance  and  overhead  comparison  of  CLMoE  with  other  baselines
+To investigate  the  overhead-performance  balance  of  the  CLMoE  
+framework, we  conduct  a  quantitative  analysis  comparing  BART-CLMoE  
+with other  baselines.  Specifically,  we  compare  the  proposed  CLMoE  
+against several  strong  baselines  in  terms  of  performance  and  overhead,  
+including BART-large,  BART-LED,  and  other  competitive  baselines.  We  
+calculate the  Efficiency  =  Average  performance  /  Memory  overhead.  
+The results  are  shown  in  Table 9 .
+As illustrated  in  the  table,  BART-CLMoE  achieves  a  competitive  
+average performance  score  of  31.67,  which  is  among  the  highest  
+across all  models,  only  slightly  behind  PRIMERA-GIE  and  PRIMERA.  In  
+terms of  ROUGE  scores,  BART-CLMoE  attains  49.94  (ROUGE-1),  20.20  
+(ROUGE-2), and  24.86  (ROUGE-L),  demonstrating  its  strong  capability  
+in text  summarization  tasks.  While  these  specialized  MDS  models  indeed  
+achieve superior  performance  on  certain  metrics,  they  often  come  with  
+substantial computational  costs.  For  instance,  the  pre-training  of  mod -
+els such  as  Centrum  and  PRIMERA  lasts  roughly  4  and  7  days  each  on  a  
+workstation with  4  Tesla  A100  GPUs.  In  contrast,  we  conduct  training  
+for BART-CLMoE  on  a  workstation  equipped  with  2  Tesla  A10  GPUs,  
+and the  total  training  time  is  about  6.5  h.  More  importantly,  BART -
+CLMoE maintains  a  low  memory  footprint  of  1.63  GB,  which  is  lower  
+than large  language  models  such  as  LLaMA-8B  (16.07  GB)  and  StableLm -
+Zephyr-3B (5.59  GB).  The  combination  of  high  average  performance  
+and low  memory  usage  yields  an  exceptional  efficiency  score  of  19.43  
+for BART-CLMoE.  Notably,  while  PRIMERA-GIE  achieves  marginally  
+higher performance,  it  requires  more  memory  and  thus  attains  a  lower  
+efficiency. Despite  the  lower  memory  usage,  BART-large  achieves  an  av -
+erage performance  of  only  30.61,  resulting  in  an  efficiency  of  18.78.
+Table 9
+Experimental results  of  performance  and  overhead  comparison.  Bold  highlights  the  best  value  within  each  column.
+Model Performance Overhead
+ROUGE-1 ROUGE-2 ROUGE-L Avearge Memory (GB) Efficiency
+LongT5-large 47.18 18.44 24.18 29.93 3.13 9.56
+BART-large 48.70 19.01 24.11 30.61 1.63 18.78
+PEGASUS-large 47.52 18.72 24.91 30.38 2.28 13.33
+BART-Long-Graph 49.24 18.99 23.97 30.73 1.63 18.85
+LLaMA-8B 47.88 17.82 23.58 29.76 16.07 1.85
+StableLm-Zephyr-3B 46.84 16.31 22.64 28.60 5.59 5.12
+BART-LED 46.89 18.50 24.84 30.08 1.84 16.35
+BART-LED-RELAX 47.23 18.86 25.03 30.37 1.84 16.51
+Centrum 49.00 20.40 25.40 31.60 1.79 17.65
+PRIMERA 49.90 20.90 25.80 32.20 1.79 17.99
+PRIMERA-GIE 50.30 21.10 26.40 32.60 1.79 18.21
+BART-CLMoE 49.94 20.20 24.86 31.67 1.63 19.43
+Applied Soft Computing 186 (2026) 114088 
+12 
+
+===== PAGE 13 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+These comparisons  underscore  the  effectiveness  of  our  CLMoE  frame -
+work in  balancing  model  performance  and  computational  overhead.  This  
+makes BART-CLMoE  particularly  suitable  for  deployment  in  resource -
+constrained scenarios  where  both  accuracy  and  computational  cost  are  
+critical.
+6.7. Ablation  study
+To investigate  the  efficiency  of  the  primary  elements  within  our  
+CLMoE framework,  we  perform  an  ablation  analysis  comparing  the  
+proposed BART-CLMoE  with  two  ablated  variants.  In  this  analysis,  we  
+first remove  the  MoE  architecture  from  the  proposed  BART-CLMoE  to  
+achieves MDS-CL  (“w/o  MoE”).  Further,  we  eliminate  the  CL  technique  
+from the  MDS-CL  to  retrieve  BART  (“w/o  CLMoE”).  The  experimental  
+results of  ablation  study  on  Multi-News  are  presented  in  Table 10 .
+From this  table,  we  can  readily  draw  the  following  conclusions.  
+Compared with  BART  (“w/o  CLMoE”),  MDS-CL  (“w/o  MoE”)  shows  
+significant gains  in  terms  of  ROUGE-1/2/L,  indicating  that  the  cur -
+riculum learning  technique  is  a  promising  approach  for  the  MDS  task.  
+Additionally, the  average  performance  of  BART-CLMoE  is  much  superior  
+to BART  (“w/o  CLMoE”)  and  MDS-CL  (“w/o  MoE”).  More  specifically,  
+BART-CLMoE exhibits  an  average  enhancement  of  0.52  compared  to  
+MDS-CL, demonstrating  the  advantageous  impact  of  the  MoE  archi -
+tecture on  improving  multi-document  summarization.  These  positive  
+results demonstrate  that  all  removable  components  play  an  integral  role  
+in the  CLMoE  framework  for  boosting  multi-document  summarization.
+7. Conclusion  and  future  work
+In this  paper,  we  propose  a  novel  CLMoE  framework  to -
+wards Curriculum  Learning  of  multi-document  summarization  utilizing  
+difficulty-aware Mixture-of-Experts.  Specifically,  we  first  train  difficulty -
+aware experts  on  subsets  of  varying  difficulties  using  a  curriculum  
+learning paradigm,  and  then  aggregate  these  experts  specialized  in  
+various problem  subspaces  using  a  mixture-of-experts  architecture.  To  
+achieve this,  the  proposed  CLMoE  consists  of  three  main  components:  
+multi-document difficulty  metric,  difficulty-aware  curriculum  learning,  
+and difficulty-aware  mixture-of-experts.  More  specifically,  we  propose  
+a multi-document  difficulty  metric  composed  of  semantic  analysis  and  
+lexical analysis  to  construct  three  subsets  with  various  difficulties  from  
+the original  dataset:  subset  #Easy,  subset  #Normal,  and  subset  #Hard.  
+Furthermore, we  present  a  difficulty-aware  curriculum  learning  that  uses  
+distinct curriculum  arrangements  for  different  subsets  to  train  corre -
+sponding experts,  including  expert  #Easy,  expert  #Normal,  and  expert  
+#Hard. Once  experts  are  obtained,  we  adopt  a  difficulty-aware  mixture -
+of-experts structure  to  integrate  them  to  improve  multi-document  
+summarization. Extensive  evaluation  results  on  two  MDS  benchmark  
+datasets demonstrate  that  our  proposed  BART-CLMoE  achieves  SOTA  
+performance compared  to  methods  with  limited  input  lengths,  and  
+achieves comparable  results  to  other  methods  with  greater  input  lengths.
+In future  work,  we  will  further  investigate  more  effective  difficulty  
+metrics for  multi-document  summarization  tasks.  In  addition,  we  will  
+explore the  utilization  of  a  hybrid  methodology  integrating  progressive  
+training and  reverse  training  to  facilitate  difficulty-aware  curriculum  
+learning. Moreover,  we  will  introduce  a  simple  learnable  component  
+to improve  the  heuristic  gating  network,  achieving  a  trade-off  between  
+heuristic and  learnable  gating.  In  particular,  it  is  worthwhile  to  apply  
+the proposed  CLMoE  to  other  challenging  scenarios.
+CRediT authorship  contribution  statement
+Ming Zhang:  Writing  –  original  draft,  Software,  Methodology,  
+Formal analysis,  Conceptualization.  Lu  Cheng:  Visualization,  Data  cu -
+ration. Wenbo  Guan:  Resources,  Investigation.  Jun  Zhou:  Supervision,  
+Funding acquisition.  Meilin  Wan:  Writing  –  review  &  editing,  
+Supervision, Project  administration.
+Declaration of  Competing  Interest
+The authors  declare  that  they  have  no  known  competing  financial  
+interests or  personal  relationships  that  could  have  appeared  to  influence  
+the work  reported  in  this  paper.
+Acknowledgement
+The authors  express  their  gratitude  to  the  anonymous  reviewers  for  
+their valuable  feedback  and  constructive  comments.  This  work  was  sup -
+ported in  part  by  the  National Natural  Science  Foundation  of  China  
+Grant 62174050 and in  part  by  the  Science Fund  for  Distinguished  
+Young Scholars  of  Hubei  Province  Grant 2024AFA091.
+Data availability
+Data will  be  made  available  on  request.  
+References
+[1] F.M. Kundi,  M.Z.  Asghar,  S.R.  Zahra,  S.  Ahmad,  A.  Khan,  A  review  of  text  summa -
+rization, Language  6  (2014)  8.
+[2] S. Li,  J.  Xu,  Mrc-sum:  an  MRC  framework  for  extractive  summarization  of  academic  
+articles in  natural  sciences  and  medicine,  Inf.  Process.  Manag.  60  (2023)  103467.
+[3] D.G. Ghalandari,  C.  Hokamp,  N.T.  Pham,  J.  Glover,  G.  Ifrim,  A  large-scale  multi -
+document summarization  dataset  from  the  Wikipedia  current  events  portal,  in:  
+Proceedings of  the  58th  Annual  Meeting  of  the  Association  for  Computational  
+Linguistics, ACL  2020,  Online,  July  5-10,  2020,  Association  for  Computational  
+Linguistics, 2020,  pp.  1302–1308.
+[4] J. Goswami,  K.K.  Prajapati,  A.  Saha,  A.K.  Saha,  Parameter-efficient  fine-tuning  large  
+language model  approach  for  hospital  discharge  paper  summarization,  Appl.  Soft  
+Comput. 157  (2024)  111531.
+[5] M.H.H. Wahab,  N.A.W.A.  Hamid,  S.  Subramaniam,  R.  Latip,  M.  Othman,  
+Decomposition-based multi-objective  differential  evolution  for  extractive  multi -
+document automatic  text  summarization,  Appl.  Soft  Comput.  151  (2024)  110994.
+[6] C. Ma,  W.E.  Zhang,  M.  Guo,  H.  Wang,  Q.Z.  Sheng,  Multi-document  summarization  
+via deep  learning  techniques:  a  survey,  ACM  Comput.  Surv.  55  (2022)  1–37.
+[7] K.N. Lam,  T.G.  Doan,  K.T.  Pham,  J.  Kalita,  Abstractive  text  summarization  using  
+the BRIO  training  paradigm,  in:  Findings  of  the  Association  for  Computational  
+Linguistics: ACL  2023,  Toronto,  Canada,  July  9-14,  2023,  Association  for  
+Computational Linguistics,  2023,  pp.  92–99.
+[8] S. Singh,  J.P.  Singh,  A.  Deepak,  Supervised  weight  learning-based  PSO  framework  for  
+single document  extractive  summarization,  Appl.  Soft  Comput.  161  (2024)  111678.
+[9] Y. Mao,  Y.  Qu,  Y.  Xie,  X.  Ren,  J.  Han,  Multi-document  summarization  with  maxi -
+mal marginal  relevance-guided  reinforcement  learning,  in:  Proceedings  of  the  2020  
+Conference on  Empirical  Methods  in  Natural  Language  Processing,  EMNLP  2020,  
+Online, November  16-20,  2020,  Association  for  Computational  Linguistics,  2020,  
+pp. 1737–1751.
+[10] R. Nallapati,  B.  Zhou,  C.N.  dos  Santos,  Ç.  Gülçehre,  B.  Xiang,  Abstractive  text  summa -
+rization using  sequence-to-sequence  RNNs  and  beyond,  in:  Proceedings  of  the  20th  
+SIGNLL Conference  on  Computational  Natural  Language  Learning,  CONLL  2016,  
+Berlin, Germany,  August  11-12,  2016,  ACL,  2016,  pp.  280–290.
+[11] A.R. Fabbri,  I.  Li,  T.  She,  S.  Li,  D.R.  Radev,  Multi-news:  a  large-scale  multi-document  
+summarization dataset  and  abstractive  hierarchical  model,  in:  Proceedings  of  the  
+57th Conference  of  the  Association  for  Computational  Linguistics,  ACL  2019,  
+Florence, Italy,  July  28 - August 2,  2019,  Volume  1:  Long  Papers,  Association  for  
+Computational Linguistics,  2019,  pp.  1074–1084.
+[12] G. Gill,  Structural  complexity  and  effective  informing,  Informing  Sci.  Int.  J.  An  
+Emerg. Transdiscipl.  11  (2008)  253–279.
+[13] J.M. Sánchez-Gómez,  M.A.  Vega-Rodríguez,  C.J.  Pérez,  A  decomposition-based  
+multi-objective optimization  approach  for  extractive  multi-document  text  summa -
+rization, Appl.  Soft  Comput.  91  (2020)  106231.
+[14] M. Guo,  J.  Ainslie,  D.C.  Uthus,  S.  Ontañón,  J.  Ni,  Y.  Sung,  Y.  Yang,  LongT5:  ef -
+ficient text-to-text  transformer  for  long  sequences,  in:  Findings  of  the  Association  
+for Computational  Linguistics:  NAACL  2022,  Seattle,  WA,  United  States,  July  10-15,  
+2022, Association  for  Computational  Linguistics,  2022,  pp.  724–736.
+[15] Y. Song,  Y.  Chen,  H.  Shuai,  Improving  multi-document  summarization  through  
+referenced flexible  extraction  with  credit-awareness,  in:  Proceedings  of  the  2022  
+Conference of  the  North  American  Chapter  of  the  Association  for  Computational  
+Linguistics: Human  Language  Technologies,  NAACL  2022,  Seattle,  WA,  United  
+States, July  10-15,  2022,  Association  for  Computational  Linguistics,  2022,  pp.  
+1667–1681.
+[16] S. Tu,  J.  Yu,  F.  Zhu,  J.  Li,  L.  Hou,  J.  Nie,  UPER:  boosting  multi-document  summa -
+rization with  an  unsupervised  prompt-based  extractor,  in:  Proceedings  of  the  29th  
+International Conference  on  Computational  Linguistics,  COLING  2022,  Gyeongju,  
+Republic of  Korea,  October  12-17,  2022,  International  Committee  on  Computational  
+Linguistics, 2022,  pp.  6315–6326.
+[17] S. Sun,  R.  Yuan,  J.  He,  Z.  Cao,  W.  Li,  X.  Jia,  Data  selection  curriculum  for  abstractive  
+text summarization,  in:  Findings  of  the  Association  for  Computational  Linguistics:  
+EMNLP 2023,  Singapore,  December  6-10,  2023,  Association  for  Computational  
+Linguistics, 2023,  pp.  7990–7995.
+[18] P. Soviany,  R.T.  Ionescu,  P.  Rota,  N.  Sebe,  Curriculum  learning:  a  survey,  Int.  J.  
+Comput. Vis.  130  (2022)  1526–1565.
+Applied Soft Computing 186 (2026) 114088 
+13 
+
+===== PAGE 14 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+[19] X. Wang,  Y.  Chen,  W.  Zhu,  A  survey  on  curriculum  learning,  IEEE  Trans.  Pattern  
+Anal. Mach.  Intell.  44  (2022)  4555–4576.
+[20] S. Masoudnia,  R.  Ebrahimpour,  Mixture  of  experts:  a  literature  survey,  Artif.  Intell.  
+Rev. 42  (2014)  275–293.
+[21] Y. Bengio,  J.  Louradour,  R.  Collobert,  J.  Weston,  Curriculum  learning,  in:  
+Proceedings of  the  26th  Annual  International  Conference  on  Machine  Learning,  
+ICML 2009,  Montreal,  Quebec,  Canada,  June  14-18,  2009,  Volume  382  of  ACM  
+International Conference  Proceeding  Series,  ACM,  2009,  pp.  41–48.
+[22] T. Wang,  Z.  Wu,  Z.  Liu,  D.  Wang,  Cluster-based  curriculum  learning  for  vision-and -
+language navigation,  in:  International  Joint  Conference  on  Neural  Networks,  IJCNN  
+2022, Padua,  Italy,  July  18-23,  2022,  IEEE,  2022,  pp.  1–7.
+[23] S. Saxena,  O.  Tuzel,  D.  DeCoste,  Data  parameters:  a  new  family  of  parame -
+ters for  learning  a  differentiable  curriculum,  in:  Advances  in  Neural  Information  
+Processing Systems  32:  Annual  Conference  on  Neural  Information  Processing  
+Systems 2019,  NEURIPS  2019,  December  8-14,  2019,  Vancouver,  BC,  Canada,  2019,  
+pp. 11093–11103.
+[24] Y. Liang,  J.  Li,  J.  Yin,  A  new  multi-choice  reading  comprehension  dataset  for  curricu -
+lum learning,  in:  Proceedings  of  the  11th  Asian  Conference  on  Machine  Learning,  
+ACML 2019,  17-19  November  2019,  Nagoya,  Japan,  Volume  101  of  Proceedings  of  
+Machine Learning  Research,  PMLR,  2019,  pp.  742–757.
+[25] M. Zhang,  F.  Meng,  Y.  Tong,  J.  Zhou,  Competence-based  curriculum  learning  for  
+multilingual machine  translation,  in:  Findings  of  the  Association  for  Computational  
+Linguistics: EMNLP  2021,  Virtual  Event/Punta  Cana,  Dominican  Republic,  16-20  
+November, 2021,  Association  for  Computational  Linguistics,  2021,  pp.  2481–2493.
+[26] Z. Yuan,  L.  Mou,  Q.  Wang,  X.X.  Zhu,  From  easy  to  hard:  learning  language-guided  
+curriculum for  visual  question  answering  on  remote  sensing  data,  IEEE  Trans.  Geosci.  
+Remote Sens.  60  (2022)  1–11.
+[27] R. Kano,  T.  Takahashi,  T.  Nishino,  M.  Taniguchi,  T.  Taniguchi,  T.  Ohkuma,  
+Quantifying appropriateness  of  summarization  data  for  curriculum  learning,  in:  
+Proceedings of  the  16th  Conference  of  the  European  Chapter  of  the  Association  for  
+Computational Linguistics:  Main  Volume,  EACL  2021,  Online,  April  19  - 23, 2021,  
+Association for  Computational  Linguistics,  2021,  pp.  1395–1405.
+[28] S. Sotudeh,  N.  Goharian,  H.  Deilamsalehy,  F.  Dernoncourt,  Curriculum-guided  ab -
+stractive summarization  for  mental  health  online  posts,  in:  Proceedings  of  the  
+13th International  Workshop  on  Health  Text  Mining  and  Information  Analysis,  
+LOUHI@EMNLP 2022,  Abu  Dhabi,  United  Arab  Emirates  (Hybrid),  December  7,  
+2022, Association  for  Computational  Linguistics,  2022,  pp.  148–153.
+[29] G. Hacohen,  D.  Weinshall,  On  the  power  of  curriculum  learning  in  training  deep  
+networks, in:  Proceedings  of  the  36th  International  Conference  on  Machine  Learning,  
+ICML 2019,  9-15  June  2019,  Long  Beach,  California,  USA,  Volume  97  of  Proceedings  
+of Machine  Learning  Research,  PMLR,  2019,  pp.  2535–2544,  http://proceedings. 
+mlr.press/v97/hacohen19a.html.
+[30] Y. Kong,  L.  Liu,  J.  Wang,  D.  Tao,  Adaptive  curriculum  learning,  in:  2021  IEEE/CVF  
+International Conference  on  Computer  Vision,  ICCV  2021,  Montreal,  QC,  Canada,  
+October 10-17,  2021,  IEEE,  2021,  pp.  5047–5056.
+[31] M. Kim,  L.  Liu,  H.  Kwon,  Sprint:  self-paced  continual  learning  with  adap -
+tive curriculum  and  memory  replay,  in:  IEEE  International  Conference  on  Big  
+Data, BigData  2024,  Washington,  DC,  USA,  December  15-18,  2024,  IEEE,  2024,  
+pp. 978–987.
+[32] R.A. Jacobs,  M.I.  Jordan,  S.J.  Nowlan,  G.E.  Hinton,  Adaptive  mixtures  of  local  
+experts, Neural  Comput.  3  (1991)  79–87.
+[33] M. Emad,  M.  Peemen,  H.  Corporaal,  MoESR:  blind  super-resolution  using  kernel -
+aware mixture  of  experts,  in:  IEEE/CVF  Winter  Conference  on  Applications  of  
+Computer Vision,  WACV  2022,  Waikoloa,  HI,  USA,  January  3-8,  2022,  IEEE,  2022,  
+pp. 4009–4018.
+[34] D. Eigen,  M.  Ranzato,  I.  Sutskever,  Learning  factored  representations  in  a  deep  mix -
+ture of  experts,  in:  2nd  International  Conference  on  Learning  Representations,  ICLR  
+2014, Banff,  AB,  Canada,  April  14-16,  2014,  Workshop  Track  Proceedings,  2014.
+[35] N. Shazeer,  A.  Mirhoseini,  K.  Maziarz,  A.  Davis,  Q.V.  Le,  G.E.  Hinton,  J.  Dean,  
+Outrageously large  neural  networks:  the  sparsely-gated  mixture-of-experts  layer,  
+in: 5th  International  Conference  on  Learning  Representations,  ICLR  2017,  Toulon,  
+France, April  24-26,  2017,  Conference  Track  Proceedings,  OpenReview.net,  2017.
+[36] W. Zhao,  Y.  Gao,  S.A.  Memon,  B.  Raj,  R.  Singh,  Hierarchical  routing  mixture  of  ex -
+perts, in:  25th  International  Conference  on  Pattern  Recognition,  ICPR  2020,  Virtual  
+Event/Milan, Italy,  January  10-15,  2021,  IEEE,  2020,  pp.  7900–7906.
+[37] Z. Zhu,  S.  Sefati,  P.  Saadatpanah,  J.  Caverlee,  Recommendation  for  new  users  
+and new  items  via  randomized  training  and  mixture-of-experts  transformation,  in:  
+Proceedings of  the  43rd  International  ACM  SIGIR  Conference  on  Research  and  
+Development in  Information  Retrieval,  SIGIR  2020,  Virtual  Event,  China,  July  25-30,  
+2020, ACM,  2020,  pp.  1121–1130.
+[38] J. Lu,  J.  Zhang,  Towards  unified  multi-domain  machine  translation  with  mix -
+ture of  domain  experts,  IEEE  ACM  Trans.  Audio  Speech  Lang.  Process.  31  (2023)  
+3488–3498.
+[39] J. Li,  Q.  Su,  Y.  Yang,  Y.  Jiang,  C.  Wang,  H.  Xu,  Adaptive  gating  in  mixture-of -
+experts based  language  models,  in:  Proceedings  of  the  2023  Conference  on  Empirical  
+Methods in  Natural  Language  Processing,  EMNLP  2023,  Singapore,  December  6-10,  
+2023, Association  for  Computational  Linguistics,  2023,  pp.  3577–3587.
+[40] T. Goyal,  N.  Rajani,  W.  Liu,  W.  Kryscinski,  HydraSum:  disentangling  style  fea -
+tures in  text  summarization  with  multi-decoder  models,  in:  Proceedings  of  the  
+2022 Conference  on  Empirical  Methods  in  Natural  Language  Processing,  EMNLP  
+2022, Abu  Dhabi,  United  Arab  Emirates,  December  7-11,  2022,  Association  for  
+Computational Linguistics,  2022,  pp.  464–479.
+[41] M. Ravaut,  S.R.  Joty,  N.F.  Chen,  SummaReranker:  a  multi-task  mixture-of-experts  
+re-ranking framework  for  abstractive  summarization,  in:  Proceedings  of  the  60th  
+Annual Meeting  of  the  Association  for  Computational  Linguistics  (Volume  1:  Long  
+Papers), ACL  2022,  Dublin,  Ireland,  May  22-27,  2022,  Association  for  Computational  
+Linguistics, 2022,  pp.  4504–4524.
+[42] W. Fedus,  J.  Dean,  B.  Zoph,  A  review  of  sparse  expert  models  in  deep  learning,  CoRr  
+abs/2209.01667 (2022).
+[43] C. Ma,  W.E.  Zhang,  M.  Guo,  H.  Wang,  Q.Z.  Sheng,  Multi-document  summarization  
+via deep  learning  techniques:  a  survey,  ACM  Comput.  Surv.  55  (2023)  102:1-102:37.
+[44] V.I. Spitkovsky,  H.  Alshawi,  D.  Jurafsky,  From  baby  steps  to  leapfrog:  how  “less  
+is more”  in  unsupervised  dependency  parsing,  in:  Human  Language  Technologies:  
+Conference of  the  North  American  Chapter  of  the  Association  of  Computational  
+Linguistics, Proceedings,  June  2-4,  2010,  Los  Angeles,  California,  USA,  The  
+Association for  Computational  Linguistics,  2010,  pp.  751–759.
+[45] M. Zhang,  J.  Lu,  J.  Yang,  J.  Zhou,  M.  Wan,  X.  Zhang,  From  coarse  to  fine:  enhancing  
+multi-document summarization  with  multi-granularity  relationship-based  extractor,  
+Inf. Process.  Manag.  61  (2024)  103696.
+[46] J.H. Lau,  T.  Baldwin,  An  empirical  evaluation  of  doc2vec  with  practical  insights  
+into document  embedding  generation,  in:  Proceedings  of  the  1st  Workshop  on  
+Representation Learning  for  NLP,  Rep4NLP@ACL  2016,  Berlin,  Germany,  August  
+11, 2016,  Association  for  Computational  Linguistics,  2016,  pp.  78–86.
+[47] M. Grootendorst,  BERTopic:  neural  topic  modeling  with  a  class-based  TF-IDF  
+procedure, CoRr  abs/2203.05794  (2022).
+[48] M. Peyrard,  A  simple  theoretical  model  of  importance  for  summarization,  in:  
+Proceedings of  the  57th  Conference  of  the  Association  for  Computational  Linguistics,  
+ACL 2019,  Florence,  Italy,  July  28 - August 2,  2019,  Volume  1:  Long  Papers,  
+Association for  Computational  Linguistics,  2019,  pp.  1059–1073.
+[49] T. Xia,  B.  Yu,  K.  Dang,  A.  Yang,  Y.  Wu,  Y.  Tian,  Y.  Chang,  J.  Lin,  Rethinking  data  
+selection at  scale:  random  selection  is  almost  all  you  need,  CoRr  abs/2410.09335  
+(2024).
+[50] M. Zhong,  P.  Liu,  Y.  Chen,  D.  Wang,  X.  Qiu,  X.  Huang,  Extractive  summarization  
+as text  matching,  in:  Proceedings  of  the  58th  Annual  Meeting  of  the  Association  
+for Computational  Linguistics,  ACL  2020,  Online,  July  5-10,  2020,  Association  for  
+Computational Linguistics,  2020,  pp.  6197–6208.
+[51] P. Over,  J.  Yen,  An  introduction  to  DUC-2004,  Natl.  Inst.  Stand.  Technol.  (2004).
+[52] R. Pasunuru,  M.  Liu,  M.  Bansal,  S.  Ravi,  M.  Dreyer,  Efficiently  summarizing  text  
+and graph  encodings  of  multi-document  clusters,  in:  Proceedings  of  the  2021  
+Conference of  the  North  American  Chapter  of  the  Association  for  Computational  
+Linguistics: Human  Language  Technologies,  NAACL-HLT  2021,  Online,  June  6-11,  
+2021, Association  for  Computational  Linguistics,  2021,  pp.  4768–4779.
+[53] C. Zhao,  T.  Huang,  S.B.R.  Chowdhury,  M.K.  Chandrasekaran,  K.R.  McKeown,
+S. Chaturvedi, Read  top  news  first:  a  document  reordering  approach  for  multi -
+document news  summarization,  in:  Findings  of  the  Association  for  Computational  
+Linguistics: ACL  2022,  Dublin,  Ireland,  May  22-27,  2022,  Association  for  
+Computational Linguistics,  2022,  pp.  613–621.
+[54] M. Zhang,  C.  Li,  M.  Wan,  X.  Zhang,  Q.  Zhao,  ROUGE-SEM:  better  evaluation  of  sum -
+marization using  ROUGE  combined  with  semantics,  Expert  Syst.  Appl.  237  (2024)  
+121364.
+[55] C.-Y. Lin,  ROUGE:  a  package  for  automatic  evaluation  of  summaries,  in:  Text  
+Summarization Branches  Out,  Association  for  Computational  Linguistics,  Barcelona,  
+Spain, 2004,  pp.  74–81.
+[56] T. Zhang,  V.  Kishore,  F.  Wu,  K.Q.  Weinberger,  Y.  Artzi,  BERTScore:  evaluating  text  
+generation with  BERT,  in:  8th  International  Conference  on  Learning  Representations,  
+ICLR 2020,  Addis  Ababa,  Ethiopia,  April  26-30,  2020,  OpenReview.net,  2020.
+[57] J. Parnell,  I.J.  Unanue,  M.  Piccardi,  A  multi-document  coverage  reward  for  re -
+laxed multi-document  summarization,  in:  Proceedings  of  the  60th  Annual  Meeting  of  
+the Association  for  Computational  Linguistics  (Volume  1:  Long  Papers),  ACL  2022,  
+Dublin, Ireland,  May  22-27,  2022,  Association  for  Computational  Linguistics,  2022,  
+pp. 5112–5128.
+[58] S. Li,  J.  Xu,  HierMDS:  a  hierarchical  multi-document  summarization  model  
+with global-local  document  dependencies,  Neural  Comput.  Appl.  35  (2023)  
+18553–18570.
+[59] A. Vaswani,  N.  Shazeer,  N.  Parmar,  J.  Uszkoreit,  L.  Jones,  A.N.  Gomez,  L.  Kaiser,  I.  
+Polosukhin, Attention  is  all  you  need,  in:  Advances  in  Neural  Information  Processing  
+Systems 30:  Annual  Conference  on  Neural  Information  Processing  Systems  2017,  
+December 4-9,  2017,  Long  Beach,  CA,  USA,  2017,  pp.  5998–6008.
+[60] S. Gehrmann,  Y.  Deng,  A.M.  Rush,  Bottom-up  abstractive  summarization,  in:  
+Proceedings of  the  2018  Conference  on  Empirical  Methods  in  Natural  Language  
+Processing, Brussels,  Belgium,  October  31  - November 4,  2018,  Association  for  
+Computational Linguistics,  2018,  pp.  4098–4109.
+[61] Y. Liu,  M.  Lapata,  Hierarchical  transformers  for  multi-document  summarization,  in:  
+Proceedings of  the  57th  Conference  of  the  Association  for  Computational  Linguistics,  
+ACL 2019,  Florence,  Italy,  July  28 - August 2,  2019,  Volume  1:  Long  Papers,  
+Association for  Computational  Linguistics,  2019,  pp.  5070–5081.
+[62] W. Li,  X.  Xiao,  J.  Liu,  H.  Wu,  H.  Wang,  J.  Du,  Leveraging  graph  to  improve  abstrac -
+tive multi-document  summarization,  in:  Proceedings  of  the  58th  Annual  Meeting  of  
+the Association  for  Computational  Linguistics,  ACL  2020,  Online,  July  5-10,  2020,  
+Association for  Computational  Linguistics,  2020,  pp.  6232–6243.
+[63] M. Lewis,  Y.  Liu,  N.  Goyal,  M.  Ghazvininejad,  A.  Mohamed,  O.  Levy,  V.  Stoyanov,
+L. Zettlemoyer,  BART:  denoising  sequence-to-sequence  pre-training  for  natural  lan-
+guage generation,  translation,  and  comprehension,  in:  Proceedings  of  the  58th  
+Annual Meeting  of  the  Association  for  Computational  Linguistics,  ACL  2020,  Online,  
+July 5-10,  2020,  Association  for  Computational  Linguistics,  2020,  pp.  7871–7880.
+[64] J. Zhao,  M.  Liu,  L.  Gao,  Y.  Jin,  L.  Du,  H.  Zhao,  H.  Zhang,  G.  Haffari,  SummPip:  
+unsupervised multi-document  summarization  with  sentence  graph  compression,  in:  
+Proceedings of  the  43rd  International  ACM  SIGIR  Conference  on  Research  and  
+Development in  Information  Retrieval,  SIGIR  2020,  Virtual  Event,  China,  July  25-30,  
+2020, ACM,  2020,  pp.  1949–1952.
+[65] H. Jin,  T.  Wang,  X.  Wan,  Multi-granularity  interaction  network  for  extractive  and  
+abstractive multi-document  summarization,  in:  Proceedings  of  the  58th  Annual  
+Meeting of  the  Association  for  Computational  Linguistics,  ACL  2020,  Online,  July  
+5-10, 2020,  Association  for  Computational  Linguistics,  2020,  pp.  6244–6254.
+Applied Soft Computing 186 (2026) 114088 
+14 
+
+===== PAGE 15 =====
+M. Zhang,  L.  Cheng,  W.  Guan  et  al.
+[66] C. Hark,  A.  Karci,  Karcı  summarization:  a  simple  and  effective  approach  for  au -
+tomatic text  summarization  using  Karcı  entropy,  Inf.  Process.  Manag.  57  (2020)  
+102187.
+[67] L. Perez-Beltrachini,  M.  Lapata,  Multi-document  summarization  with  determinantal  
+point process  attention,  J.  Artif.  Intell.  Res.  71  (2021)  371–399.
+[68] S. Liu,  J.  Cao,  R.  Yang,  Z.  Wen,  Key  phrase  aware  transformer  for  abstractive  
+summarization, Inf.  Process.  Manag.  59  (2022)  102913.
+[69] O. Ernst,  A.  Caciularu,  O.  Shapira,  R.  Pasunuru,  M.  Bansal,  J.  Goldberger,  I.  Dagan,  
+Proposition-level clustering  for  multi-document  summarization,  in:  Proceedings  
+of the  2022  Conference  of  the  North  American  Chapter  of  the  Association  for  
+Computational Linguistics:  Human  Language  Technologies,  NAACL  2022,  Seattle,  
+WA, United  States,  July  10-15,  2022,  Association  for  Computational  Linguistics,  
+2022, pp.  1765–1779.
+[70] A. Ghadimi,  H.  Beigy,  Hybrid  multi-document  summarization  using  pre-trained  
+language models,  Expert  Syst.  Appl.  192  (2022)  116292.
+[71] W. Xiao,  I.  Beltagy,  G.  Carenini,  A.  Cohan,  PRIMERA:  pyramid-based  masked  sen -
+tence pre-training  for  multi-document  summarization,  in:  Proceedings  of  the  60th  
+Annual Meeting  of  the  Association  for  Computational  Linguistics  (Volume  1:  Long  
+Papers), ACL  2022,  Dublin,  Ireland,  May  22-27,  2022,  Association  for  Computational  
+Linguistics, 2022,  pp.  5245–5263.
+[72] R.S. Puduppully,  P.  Jain,  N.  Chen,  M.  Steedman,  Multi-document  summarization  
+with centroid-based  pretraining,  in:  Proceedings  of  the  61st  Annual  Meeting  of
+the Association  for  Computational  Linguistics  (Volume  2:  Short  Papers),  ACL  2023,  
+Toronto, Canada,  July  9-14,  2023,  Association  for  Computational  Linguistics,  2023,  
+pp. 128–138.
+[73] Z. Zhang,  H.  Elfardy,  M.  Dreyer,  K.  Small,  H.  Ji,  M.  Bansal,  Enhancing  multi -
+document summarization  with  cross-document  graph-based  information  extraction,  
+in: Proceedings  of  the  17th  Conference  of  the  European  Chapter  of  the  Association  
+for Computational  Linguistics,  EACL  2023,  Dubrovnik,  Croatia,  May  2-6,  2023,  
+Association for  Computational  Linguistics,  2023,  pp.  1688–1699.
+[74] H. Touvron,  L.  Martin,  K.  Stone,  P.  Albert,  A.  Almahairi,  Y.  Babaei,  N.  Bashlykov,  
+S. Batra,  P.  Bhargava,  S.  Bhosale,  D.  Bikel,  L.  Blecher,  C.  Canton-Ferrer,  M.  Chen,
+G. Cucurull, D.  Esiobu,  J.  Fernandes,  J.  Fu,  W.  Fu,  B.  Fuller,  C.  Gao,  V.  Goswami,
+N. Goyal, A.  Hartshorn,  S.  Hosseini,  R.  Hou,  H.  Inan,  M.  Kardas,  V.  Kerkez,  M.  
+Khabsa, I.  Kloumann,  A.  Korenev,  P.S.  Koura,  M.  Lachaux,  T.  Lavril,  J.  Lee,  D.  
+Liskovich, Y.  Lu,  Y.  Mao,  X.  Martinet,  T.  Mihaylov,  P.  Mishra,  I.  Molybog,  Y.  Nie,  A.  
+Poulton, J.  Reizenstein,  R.  Rungta,  K.  Saladi,  A.  Schelten,  R.  Silva,  E.M.  Smith,  R.  
+Subramanian, X.E.  Tan,  B.  Tang,  R.  Taylor,  A.  Williams,  J.X.  Kuan,  P.  Xu,  Z.  Yan,
+I. Zarov, Y.  Zhang,  A.  Fan,  M.  Kambadur,  S.  Narang,  A.  Rodriguez,  R.  Stojnic,  S.  
+Edunov, T.  Scialom,  Llama  2:  open  foundation  and  fine-tuned  chat  models,  CoRr  
+abs/2307.09288 (2023).
+[75] S. Tan,  J.  Park,  D.  Li,  R.  Jiang,  M.  Okumura,  A  unified  retrieval  framework  
+with document  ranking  and  edu  filtering  for  multi-document  summarization,  CoRr  
+abs/2504.16711 (2025).
+Applied Soft Computing 186 (2026) 114088 
+15 
